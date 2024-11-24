@@ -2,10 +2,10 @@ import 'dart:ui';
 
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/constants/light_font_style.dart';
-import 'package:chatter/utils/responsive.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_iconly/flutter_iconly.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:iconsax/iconsax.dart';
 
 class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -29,11 +29,11 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           elevation: 0, // Remove shadow
           title: Row(
             children: [
-              const CircleAvatar(
-                radius: 15,
+              CircleAvatar(
+                radius: 17.r,
                 backgroundColor: AppColors.primaryColor,
               ),
-              SizedBox(width: getResponsiveWidth(8)),
+              SizedBox(width: (8.w)),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -55,7 +55,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               size: 20,
               color: Theme.of(context).primaryColor,
             ),
-            kWidth(getResponsiveWidth(22)),
+            kWidth((22.w)),
             Icon(
               Iconsax.call,
               size: 17,
@@ -95,7 +95,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               ],
             ),
           ],
-          titleSpacing: getResponsiveWidth(0),
+          titleSpacing: 0,
         ),
       ),
     );

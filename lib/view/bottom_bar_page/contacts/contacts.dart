@@ -8,7 +8,7 @@ class ContactsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var ctr = Get.put(ContactsController());
+    var ctr = Get.find<ContactsController>();
     return Scaffold(
         body: Column(
       children: [

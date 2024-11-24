@@ -1,9 +1,11 @@
+import 'dart:developer';
+
 import 'package:chatter/constants/colors.dart';
-import 'package:chatter/utils/navigation.dart';
-import 'package:chatter/utils/responsive.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
 import 'package:chatter/view/chat/chat.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -15,7 +17,7 @@ class HomePage extends StatelessWidget {
       extendBodyBehindAppBar: true,
       body: ListView.separated(
         separatorBuilder: (context, index) => Padding(
-          padding: EdgeInsets.only(left: getResponsiveWidth(72)),
+          padding: EdgeInsets.only(left: (72.w)),
           child: Divider(
             thickness: 0.2,
             height: 14,
@@ -27,7 +29,9 @@ class HomePage extends StatelessWidget {
           return ListTile(
             minTileHeight: 0,
             onTap: () {
-              CustomNavigator.getToPage(ChatPage());
+              log('message');
+
+              Get.to(() => ChatPage(), transition: Transition.cupertino);
             },
             leading: CircleAvatar(
               radius: 18,
@@ -41,7 +45,7 @@ class HomePage extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 getChatStatusWhiteIcon('seen', context),
-                kWidth(getResponsiveWidth(3)),
+                kWidth((3.w)),
                 Text(
                   "hiii",
                   style: Theme.of(context).primaryTextTheme.labelSmall,

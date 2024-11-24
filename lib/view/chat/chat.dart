@@ -4,11 +4,11 @@ import 'package:chatter/model/chat.dart';
 import 'package:chatter/utils/format_date.dart';
 import 'package:chatter/utils/format_time.dart';
 import 'package:chatter/utils/is_same_day.dart';
-import 'package:chatter/utils/responsive.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
 import 'package:chatter/view/chat/widgets/plus_icon.dart';
 import 'package:chatter/widgets/chat_app_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -81,11 +81,11 @@ class ChatPage extends StatelessWidget {
           ),
 
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: EdgeInsets.all(8.w),
             child: Row(
               children: [
                 SendTextField(ctr: ctr),
-                kWidth(getResponsiveWidth(13)),
+                kWidth((13.w)),
                 SendMicButton(
                   isSend: true,
                   onTap: () {
@@ -128,7 +128,7 @@ class SendTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+        padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 15.w),
         decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(50),
             color: AppColors.primaryLight),
@@ -139,7 +139,7 @@ class SendTextField extends StatelessWidget {
                   .textTheme
                   .bodyMedium
                   ?.copyWith(color: AppColors.darkColor),
-              cursorHeight: 16,
+              cursorHeight: 16.h,
               minLines: 1,
               maxLines: 4,
               cursorColor: AppColors.primaryColor,
@@ -151,7 +151,7 @@ class SendTextField extends StatelessWidget {
                     ?.copyWith(fontWeight: FontWeight.normal),
                 contentPadding: const EdgeInsets.all(0),
                 isDense: true,
-                hintText: "Type your message",
+                hintText: "message",
                 border: InputBorder.none,
               ),
             ),
@@ -192,12 +192,8 @@ class TextMessageBubble extends StatelessWidget {
                               next?.senderId != chat.senderId)
                       ? 10
                       : 1,
-                  right: chat.isSentByMe ?? false
-                      ? getResponsiveWidth(8)
-                      : getResponsiveWidth(100),
-                  left: chat.isSentByMe ?? false
-                      ? getResponsiveWidth(100)
-                      : getResponsiveWidth(8))
+                  right: chat.isSentByMe ?? false ? (8.w) : (100.w),
+                  left: chat.isSentByMe ?? false ? (100.w) : (8.w))
               : EdgeInsets.only(
                   top: 1,
                   bottom: (previous?.senderId == chat.senderId &&
@@ -375,8 +371,8 @@ BorderRadiusGeometry buildMessageBubbleRadius(
   }
 }
 //  right: chat.isSentByMe ?? false
-//                   ? getResponsiveWidth(context: context, baseValue: 8)
-//                   : getResponsiveWidth(context: context, baseValue: 100),
+//                   ? (context: context, baseValue: 8)
+//                   : (context: context, baseValue: 100),
 //               left: chat.isSentByMe ?? false
-//                   ? getResponsiveWidth(context: context, baseValue: 100)
-//                   : getResponsiveWidth(context: context, baseValue: 8)),
+//                   ? (context: context, baseValue: 100)
+//                   : (context: context, baseValue: 8)),

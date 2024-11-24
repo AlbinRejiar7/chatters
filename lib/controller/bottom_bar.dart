@@ -1,7 +1,7 @@
-import 'package:chatter/view/calls/calls.dart';
-import 'package:chatter/view/contacts/contacts.dart';
-import 'package:chatter/view/home/home.dart';
-import 'package:chatter/view/stories/stories.dart';
+import 'package:chatter/view/bottom_bar_page/calls/calls.dart';
+import 'package:chatter/view/bottom_bar_page/contacts/contacts.dart';
+import 'package:chatter/view/bottom_bar_page/home/home.dart';
+import 'package:chatter/view/bottom_bar_page/stories/stories.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

@@ -39,6 +39,8 @@ dependencies:
   get: ^4.6.6
   iconsax: ^0.0.8
   flutter_contacts: ^1.1.9+2
+  flutter_iconly:
+  get_storage: ^2.1.1
 
 dev_dependencies:
   flutter_test:

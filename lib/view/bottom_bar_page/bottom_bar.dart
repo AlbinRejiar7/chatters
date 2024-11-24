@@ -1,4 +1,5 @@
 import 'package:chatter/controller/bottom_bar.dart';
+import 'package:chatter/widgets/appbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -10,9 +11,7 @@ class BottomBarPage extends StatelessWidget {
   Widget build(BuildContext context) {
     var ctr = Get.put(BottomBarController());
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("bottom bar home page"),
-      ),
+      appBar: AnimatedSearchAppBar(),
       bottomNavigationBar: Obx(() {
         return NavigationBar(
             height: 60,

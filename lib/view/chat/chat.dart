@@ -7,6 +7,7 @@ import 'package:chatter/utils/is_same_day.dart';
 import 'package:chatter/utils/responsive.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
 import 'package:chatter/view/chat/widgets/plus_icon.dart';
+import 'package:chatter/widgets/chat_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -20,9 +21,9 @@ class ChatPage extends StatelessWidget {
     final ScrollController scrollController = ScrollController();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("CHATTINGS SCREEN"),
-      ),
+      extendBody: true,
+      extendBodyBehindAppBar: true,
+      appBar: ChatAppBar(),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -49,9 +50,12 @@ class ChatPage extends StatelessWidget {
                       if (showDateHeader) ...[
                         Center(
                           child: Padding(
-                            padding: const EdgeInsets.only(top: 10),
+                            padding: const EdgeInsets.only(bottom: 5),
                             child: Text(formatDate(chat.timestamp),
-                                style: Theme.of(context).textTheme.bodyLarge),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(fontWeight: FontWeight.normal)),
                           ),
                         ),
                       ],
@@ -123,35 +127,36 @@ class SendTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-              decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(50),
-                  color: AppColors.primaryLight),
-              child: Column(
-                children: [
-                  TextField(
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    cursorHeight: 16,
-                    minLines: 1,
-                    maxLines: 4,
-                    controller: ctr.messageController,
-                    decoration: InputDecoration(
-                      hintStyle: Theme.of(context).textTheme.bodyMedium,
-                      contentPadding: const EdgeInsets.all(0),
-                      isDense: true,
-                      hintText: "Type your message",
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(50),
+            color: AppColors.primaryLight),
+        child: Column(
+          children: [
+            TextField(
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: AppColors.darkColor),
+              cursorHeight: 16,
+              minLines: 1,
+              maxLines: 4,
+              cursorColor: AppColors.primaryColor,
+              controller: ctr.messageController,
+              decoration: InputDecoration(
+                hintStyle: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(fontWeight: FontWeight.normal),
+                contentPadding: const EdgeInsets.all(0),
+                isDense: true,
+                hintText: "Type your message",
+                border: InputBorder.none,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -180,13 +185,27 @@ class TextMessageBubble extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
           margin: !(chat.isSentByMe ?? false)
               ? EdgeInsets.only(
-                  top: 10,
-                  bottom: 10,
-                  right: chat.isSentByMe ?? false ? 8 : 100,
-                  left: chat.isSentByMe ?? false ? 100 : 8)
+                  top: 1,
+                  bottom: (previous?.senderId == chat.senderId &&
+                              next?.senderId != chat.senderId) ||
+                          (previous?.senderId != chat.senderId &&
+                              next?.senderId != chat.senderId)
+                      ? 10
+                      : 1,
+                  right: chat.isSentByMe ?? false
+                      ? getResponsiveWidth(8)
+                      : getResponsiveWidth(100),
+                  left: chat.isSentByMe ?? false
+                      ? getResponsiveWidth(100)
+                      : getResponsiveWidth(8))
               : EdgeInsets.only(
                   top: 1,
-                  bottom: 1,
+                  bottom: (previous?.senderId == chat.senderId &&
+                              next?.senderId != chat.senderId) ||
+                          (previous?.senderId != chat.senderId &&
+                              next?.senderId != chat.senderId)
+                      ? 10
+                      : 1,
                   right: chat.isSentByMe ?? false ? 8 : 100,
                   left: chat.isSentByMe ?? false ? 100 : 8),
           decoration: BoxDecoration(
@@ -247,7 +266,10 @@ class TextMessageBubble extends StatelessWidget {
   }
 }
 
-Icon getChatStatusIcon(String status, BuildContext context) {
+Icon getChatStatusIcon(
+  String status,
+  BuildContext context,
+) {
   switch (status.toLowerCase()) {
     case "send":
       return Icon(
@@ -330,7 +352,7 @@ BorderRadiusGeometry buildMessageBubbleRadius(
         return BorderRadius.only(
           topLeft: Radius.circular(15),
           topRight: Radius.circular(15),
-          bottomLeft: Radius.circular(10),
+          bottomLeft: Radius.circular(2),
           bottomRight: Radius.circular(15),
         );
       case 'middle':
@@ -342,7 +364,7 @@ BorderRadiusGeometry buildMessageBubbleRadius(
         );
       case 'last':
         return BorderRadius.only(
-          topLeft: Radius.circular(10),
+          topLeft: Radius.circular(2),
           topRight: Radius.circular(15),
           bottomLeft: Radius.circular(15),
           bottomRight: Radius.circular(15),

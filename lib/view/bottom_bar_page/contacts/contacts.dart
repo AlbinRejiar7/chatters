@@ -27,7 +27,6 @@ class ContactsPage extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                
                   if (index == 0 ||
                       ctr.contacts[index - 1].displayName[0].toUpperCase() !=
                           contact.displayName[0].toUpperCase())

@@ -39,10 +39,6 @@ class ChatPageController extends GetxController {
         }
       }
 
-      // Keep the list sorted (if required)
-      sampleChats.sort((a, b) => a.timestamp!.compareTo(b.timestamp!));
-
-      // Automatically scroll to the bottom after updates
       scrollToBottom();
 
       log("${sampleChats.length} sampleChats length...");

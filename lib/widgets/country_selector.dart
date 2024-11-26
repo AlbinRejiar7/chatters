@@ -85,7 +85,7 @@ class CountryCodeSelectorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var ctr = Get.put(CountrySelectorController());
+    var ctr = Get.find<CountrySelectorController>();
     return GestureDetector(
       onTap: () {
         selectCountryCode(context);

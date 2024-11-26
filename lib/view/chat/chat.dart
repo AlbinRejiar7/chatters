@@ -1,6 +1,10 @@
+import 'dart:developer';
+
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/controller/chat.dart';
 import 'package:chatter/model/chat.dart';
+import 'package:chatter/services/chat_service.dart';
+import 'package:chatter/services/local_service.dart';
 import 'package:chatter/utils/format_date.dart';
 import 'package:chatter/utils/format_time.dart';
 import 'package:chatter/utils/is_same_day.dart';
@@ -11,19 +15,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:uuid/uuid.dart';
 
 class ChatPage extends StatelessWidget {
-  const ChatPage({super.key});
+  final String name;
+  final String chatRoomId;
+  final String receiverId;
+  const ChatPage(
+      {super.key,
+      required this.name,
+      required this.chatRoomId,
+      required this.receiverId});
 
   @override
   Widget build(BuildContext context) {
-    final ctr = Get.put(ChatPageController());
-    final ScrollController scrollController = ScrollController();
+    final ctr = Get.put(ChatPageController(chatRoomId: chatRoomId));
 
     return Scaffold(
       extendBody: true,
       extendBodyBehindAppBar: true,
-      appBar: ChatAppBar(),
+      appBar: ChatAppBar(
+        name: name,
+      ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -31,10 +44,12 @@ class ChatPage extends StatelessWidget {
             child: Obx(
               () => AnimatedList(
                 key: ctr.listKey,
-                controller: scrollController,
+                controller: ctr.scrollController,
                 initialItemCount: ctr.sampleChats.length,
                 itemBuilder: (context, index, animation) {
                   final chat = ctr.sampleChats[index];
+                  log("message");
+                  chat.isSentByMe = chat.senderId == LocalService.userId;
                   final ChatModel? previous =
                       index > 0 ? ctr.sampleChats[index - 1] : null;
                   final ChatModel? next = index < ctr.sampleChats.length - 1
@@ -90,18 +105,20 @@ class ChatPage extends StatelessWidget {
                   isSend: true,
                   onTap: () {
                     if (ctr.messageController.text.trim().isNotEmpty) {
-                      ctr.addChat(
-                        index: ctr.sampleChats.length,
-                        id: "${DateTime.now().microsecondsSinceEpoch}",
-                        isRead: true,
-                        isSentByMe: true,
+                      var message = ChatModel(
+                        id: Uuid().v4(),
+                        senderId: LocalService.userId,
+                        senderName: LocalService.userName,
                         message: ctr.messageController.text.trim(),
-                        messageType: MessageType.text,
-                        senderId: "12345",
-                        senderName: "You",
                         timestamp: DateTime.now(),
-                        scrollController: scrollController,
+                        isSentByMe: true,
+                        isRead: false,
+                        messageType: MessageType.text,
+                        receiverId: receiverId,
                       );
+                      ChatRoomService.sendMessage(
+                          chatRoomId: chatRoomId, message: message);
+
                       ctr.messageController.clear();
                     }
                   },

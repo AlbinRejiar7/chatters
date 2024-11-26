@@ -1,12 +1,15 @@
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/constants/light_font_style.dart';
 import 'package:chatter/controller/search.dart';
+import 'package:chatter/services/local_service.dart';
+import 'package:chatter/view/setting/logout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
 class AnimatedSearchAppBar extends StatelessWidget
     implements PreferredSizeWidget {
+    
   const AnimatedSearchAppBar({super.key});
 
   @override
@@ -58,7 +61,8 @@ class AnimatedSearchAppBar extends StatelessWidget
                   children: [
                     CircleAvatar(
                       radius: 18.r,
-                      backgroundColor: AppColors.primaryColor,
+                      backgroundImage:
+                          NetworkImage(LocalService.imageUrl ?? ""),
                     ),
                     SizedBox(width: (20.w)),
                     Text(
@@ -108,10 +112,13 @@ class AnimatedSearchAppBar extends StatelessWidget
                 style: LightFontStyle.textMedium,
               )),
               PopupMenuItem(
+                  onTap: () {
+                    Get.to(() => LogoutPage());
+                  },
                   child: Text(
-                'Settings',
-                style: LightFontStyle.textMedium,
-              ))
+                    'Settings',
+                    style: LightFontStyle.textMedium,
+                  ))
             ],
           ),
       ],

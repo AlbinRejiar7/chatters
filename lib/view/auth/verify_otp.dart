@@ -1,4 +1,4 @@
-import 'package:chatter/auth/send_otp.dart';
+import 'package:chatter/view/auth/send_otp.dart';
 import 'package:chatter/controller/send_otp.dart';
 import 'package:chatter/services/firebase_auth.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
@@ -56,6 +56,7 @@ class VerifyOtpPage extends StatelessWidget {
                     onPressed: () {
                       if (ctr.otpController.text.length == 6) {
                         FirebaseAuthServices.verifyOtp(
+                            number: ctr.phoneController.text,
                             smsCode: ctr.otpController.text,
                             verificationId: verificationId);
                       } else {

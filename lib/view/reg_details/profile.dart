@@ -7,10 +7,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
 class SetProfilePage extends StatelessWidget {
-  final SetProfileController controller = Get.put(SetProfileController());
+  final String phonNumber;
+  const SetProfilePage({super.key, required this.phonNumber});
 
   @override
   Widget build(BuildContext context) {
+    final SetProfileController controller = Get.put(SetProfileController());
     return Scaffold(
       appBar: AppBar(
         title: Text('Set Your Profile',
@@ -111,13 +113,18 @@ class SetProfilePage extends StatelessWidget {
                 ),
                 onPressed: () {
                   if (controller.validateForm()) {
-                    Get.snackbar(
-                      'Profile Saved',
-                      'First Name: ${controller.firstName.value}\nLast Name: ${controller.lastName.value}',
-                      snackPosition: SnackPosition.BOTTOM,
-                      backgroundColor: AppColors.primaryColor,
-                      colorText: AppColors.whiteColor,
+                    controller.registerUser(
+                      username:
+                          "${controller.firstNameController.text}${controller.lastNameController.text}",
+                      phoneNumber: phonNumber,
                     );
+                    // Get.snackbar(
+                    //   'Profile Saved',
+                    //   'First Name: ${controller.firstName.value}\nLast Name: ${controller.lastName.value}',
+                    //   snackPosition: SnackPosition.BOTTOM,
+                    //   backgroundColor: AppColors.primaryColor,
+                    //   colorText: AppColors.whiteColor,
+                    // );
                   }
                 },
                 child: Text('Save Profile', style: TextStyle(fontSize: 16.sp)),

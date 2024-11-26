@@ -9,7 +9,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:iconsax/iconsax.dart';
 
 class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const ChatAppBar({super.key});
+  final String name;
+  const ChatAppBar({super.key, required this.name});
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +39,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Albin",
+                    name,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   Text(

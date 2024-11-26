@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class UserModel {
   String id; // Unique identifier for the user
   String username; // Display name of the user
@@ -35,10 +37,13 @@ class UserModel {
       profileImageUrl: map['profileImageUrl'] as String?,
       bio: map['bio'] as String?,
       isOnline: map['isOnline'] as bool,
-      lastSeen: DateTime.parse(map['lastSeen'] as String),
+      // Convert Timestamp to DateTime
+      lastSeen: (map['lastSeen'] as Timestamp).toDate(),
+      // Ensure 'blockedUsers' is a list, even if it's empty
       blockedUsers: List<String>.from(map['blockedUsers'] ?? []),
-      createdAt: DateTime.parse(map['createdAt'] as String),
-      updatedAt: DateTime.parse(map['updatedAt'] as String),
+      // Convert Timestamps to DateTime
+      createdAt: (map['createdAt'] as Timestamp).toDate(),
+      updatedAt: (map['updatedAt'] as Timestamp).toDate(),
     );
   }
 
@@ -52,8 +57,10 @@ class UserModel {
       'profileImageUrl': profileImageUrl,
       'bio': bio,
       'isOnline': isOnline,
+      // Convert DateTime to ISO8601 String
       'lastSeen': lastSeen.toIso8601String(),
       'blockedUsers': blockedUsers,
+      // Convert DateTime to ISO8601 String
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };

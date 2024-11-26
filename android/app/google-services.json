@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "226228017889",
-    "project_id": "chatter-71247",
-    "storage_bucket": "chatter-71247.firebasestorage.app"
+    "project_number": "596905981664",
+    "project_id": "chattingapp-4e42e",
+    "storage_bucket": "chattingapp-4e42e.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:226228017889:android:980add417e7f24c50775a0",
+        "mobilesdk_app_id": "1:596905981664:android:426705b2d2367b3fa60285",
         "android_client_info": {
           "package_name": "com.example.chatter"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAa5BLPHFJqvOLNzn3v79uz3LoIuWglEgU"
+          "current_key": "AIzaSyDraMfe7MVtBN_tCOz_iT24KBR1mR_iZTE"
         }
       ],
       "services": {

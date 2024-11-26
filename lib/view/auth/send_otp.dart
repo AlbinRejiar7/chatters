@@ -1,9 +1,10 @@
-import 'package:chatter/auth/widget/phone_dialoge.dart';
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/constants/light_font_style.dart';
+import 'package:chatter/controller/country_selector.dart';
 import 'package:chatter/controller/send_otp.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
 import 'package:chatter/utils/validators.dart';
+import 'package:chatter/view/auth/widget/phone_dialoge.dart';
 import 'package:chatter/widgets/button.dart';
 import 'package:chatter/widgets/country_selector.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +16,8 @@ class SendOtpPage extends StatelessWidget {
   const SendOtpPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) { 
+    Get.put(CountrySelectorController());
     var ctr = Get.put<SendOtpContrller>(SendOtpContrller());
     return Scaffold(
       body: SafeArea(
@@ -29,7 +31,7 @@ class SendOtpPage extends StatelessWidget {
                 style: Theme.of(context)
                     .textTheme
                     .titleMedium
-                    ?.copyWith(fontSize: 25),
+                    ?.copyWith(fontSize: 25.sp),
               ),
               Text("Enter your phone number to get started.",
                   style: Theme.of(context).textTheme.bodyMedium),
@@ -37,7 +39,7 @@ class SendOtpPage extends StatelessWidget {
               Column(
                 children: [
                   SizedBox(
-                    height: 40.h,
+                    height: 45.h,
                     child: Row(
                       children: [
                         CountryCodeSelectorWidget(),
@@ -81,7 +83,7 @@ class SendOtpPage extends StatelessWidget {
                                       ctr.currentTextValue.value) ==
                                   null) {
                                 showPhoneNumberDialog(
-                                    context, ctr.phoneController.text);
+                                    context, "${ctr.phoneController.text}");
                               }
                             },
                     );
@@ -124,6 +126,7 @@ class TextFieldCustom extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             color: AppColors.primaryLight),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextFormField(
               maxLength: maxLength, // Limit input length to 6 characters

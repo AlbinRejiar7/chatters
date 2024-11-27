@@ -5,43 +5,42 @@ import 'package:chatter/services/firebase_services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class ChatPageController extends GetxController {
+  late Box<ChatModel> chatBox;
+
   final String chatRoomId;
   final GlobalKey<AnimatedListState> listKey = GlobalKey<AnimatedListState>();
   var messageController = TextEditingController();
   var currentIndex = 0.obs;
   final ScrollController scrollController = ScrollController();
   void listenToMessages(String chatRoomId) {
-    sampleChats.clear();
-    log("Listening to messages...");
-
     FirebaseFireStoreServices.firestore
         .collection('chatRooms')
         .doc(chatRoomId)
         .collection('messages')
         .orderBy('timestamp', descending: true)
         .snapshots()
-        .listen((QuerySnapshot snapshot) {
+        .listen((QuerySnapshot snapshot) async {
+      // Process each document in the snapshot
       final newChats = snapshot.docs.map((doc) {
         return ChatModel.fromJson(doc.data() as Map<String, dynamic>);
       }).toList();
 
-      // Compare the newChats with sampleChats to find truly new messages
       for (var newChat in newChats.reversed) {
+        // Check if the chat is already in the list
         if (!sampleChats.any((existingChat) => existingChat.id == newChat.id)) {
           sampleChats.add(newChat);
-          final index = sampleChats.indexOf(newChat);
+          sampleChats.refresh();
+          log("isSend Value --------  ${newChat.isSend}  message ---- ${newChat.message}");
+          // Optionally scroll to the bottom
+          // scrollToBottom();
 
-          // Insert new chat into the AnimatedList
-          listKey.currentState
-              ?.insertItem(index, duration: const Duration(milliseconds: 200));
+          // Save new message to Hive or other storage
+          // addNewMessage(newChat);
         }
       }
-
-      scrollToBottom();
-
-      log("${sampleChats.length} sampleChats length...");
     });
   }
 
@@ -255,9 +254,29 @@ class ChatPageController extends GetxController {
     scrollToBottom();
   }
 
+  Future<List<ChatModel>> loadMessagesFromHive() async {
+    return chatBox.values.toList();
+  }
+
+  Future<void> saveMessagesToHive(List<ChatModel> messages) async {
+    await chatBox.clear(); // Clear old messages
+    for (var message in messages) {
+      await chatBox.add(message);
+    }
+  }
+
+  void addNewMessage(ChatModel newMessage) async {
+    if (!chatBox.values.any((msg) => msg.id == newMessage.id)) {
+      await chatBox.add(newMessage);
+    }
+  }
+
   @override
-  void onInit() {
+  void onInit() async {
     super.onInit();
+    chatBox = await Hive.openBox<ChatModel>('chatMessages');
+    // sampleChats.value = await loadMessagesFromHive();
+
     listenToMessages(chatRoomId);
   }
 }

@@ -1,30 +1,82 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:get/get.dart';
+import 'package:hive_flutter/adapters.dart';
 
-enum MessageType { text, image, video, audio, file, location }
+part 'chat.g.dart';
 
+@HiveType(typeId: 1)
+enum MessageType {
+  @HiveField(0)
+  text,
+  @HiveField(1)
+  image,
+  @HiveField(2)
+  video,
+  @HiveField(3)
+  audio,
+  @HiveField(4)
+  file,
+  @HiveField(5)
+  location,
+}
+
+@HiveType(typeId: 0)
 class ChatModel {
-  String? id; // Unique ID for the message
-  String? senderId; // ID of the sender
-  String? senderName; // Name of the sender
-  String? receiverId; // ID of the receiver
-  String? message; // The message text
-  DateTime? timestamp; // Time the message was sent
-  bool? isSentByMe; // Whether the message is sent by the current user
-  bool? isRead; // Whether the message has been read
-  MessageType? messageType; // Type of the message (text, image, etc.)
-  String? mediaUrl; // URL for images, videos, or other media
-  String? thumbnailUrl; // URL for video thumbnails
-  String? fileName; // For file-type messages
-  String? fileSize; // For file-size details
-  Map<String, double>?
-      location; // For location-based messages (latitude, longitude)
-  bool? isDeleted; // Whether the message has been deleted
-  RxBool? isSend = false.obs; // Observing send status
-  List<String>? reactions; // List of reactions (e.g., emoji strings)
-  List<String>? mentions; // List of user IDs mentioned in the message
-  String? replyToMessageId; // ID of the message being replied to
+  @HiveField(0)
+  String? id;
 
+  @HiveField(1)
+  String? senderId;
+
+  @HiveField(2)
+  String? senderName;
+
+  @HiveField(3)
+  String? receiverId;
+
+  @HiveField(4)
+  String? message;
+
+  @HiveField(5)
+  DateTime? timestamp;
+
+  @HiveField(6)
+  bool? isSentByMe;
+
+  @HiveField(7)
+  bool? isRead;
+
+  @HiveField(8)
+  MessageType? messageType;
+
+  @HiveField(9)
+  String? mediaUrl;
+
+  @HiveField(10)
+  String? thumbnailUrl;
+
+  @HiveField(11)
+  String? fileName;
+
+  @HiveField(12)
+  String? fileSize;
+
+  @HiveField(13)
+  Map<String, double>? location;
+
+  @HiveField(14)
+  bool? isDeleted;
+
+  @HiveField(15)
+  bool? isSend;
+
+  @HiveField(16)
+  List<String>? reactions;
+
+  @HiveField(17)
+  List<String>? mentions;
+
+  @HiveField(18)
+  String? replyToMessageId;
   ChatModel({
     this.id,
     this.senderId,
@@ -50,34 +102,36 @@ class ChatModel {
   // Factory method to create a ChatModel from JSON
   factory ChatModel.fromJson(Map<String, dynamic> json) {
     return ChatModel(
-      id: json['id'],
-      senderId: json['senderId'],
-      senderName: json['senderName'],
-      receiverId: json['receiverId'],
-      message: json['message'],
-      timestamp:
-          json['timestamp'] != null ? DateTime.parse(json['timestamp']) : null,
-      isSentByMe: json['isSentByMe'],
-      isRead: json['isRead'],
-      messageType: json['messageType'] != null
-          ? MessageType.values.firstWhere(
-              (e) => e.toString() == 'MessageType.${json['messageType']}',
-            )
-          : null,
-      mediaUrl: json['mediaUrl'],
-      thumbnailUrl: json['thumbnailUrl'],
-      fileName: json['fileName'],
-      fileSize: json['fileSize'],
-      location: json['location'] != null
-          ? Map<String, double>.from(json['location'])
-          : null,
-      isDeleted: json['isDeleted'],
-      reactions:
-          json['reactions'] != null ? List<String>.from(json['reactions']) : [],
-      mentions:
-          json['mentions'] != null ? List<String>.from(json['mentions']) : [],
-      replyToMessageId: json['replyToMessageId'],
-    );
+        id: json['id'],
+        senderId: json['senderId'],
+        senderName: json['senderName'],
+        receiverId: json['receiverId'],
+        message: json['message'],
+        timestamp: json['timestamp'] != null
+            ? DateTime.parse(json['timestamp'])
+            : null,
+        isSentByMe: json['isSentByMe'],
+        isRead: json['isRead'],
+        messageType: json['messageType'] != null
+            ? MessageType.values.firstWhere(
+                (e) => e.toString() == 'MessageType.${json['messageType']}',
+              )
+            : null,
+        mediaUrl: json['mediaUrl'],
+        thumbnailUrl: json['thumbnailUrl'],
+        fileName: json['fileName'],
+        fileSize: json['fileSize'],
+        location: json['location'] != null
+            ? Map<String, double>.from(json['location'])
+            : null,
+        isDeleted: json['isDeleted'],
+        reactions: json['reactions'] != null
+            ? List<String>.from(json['reactions'])
+            : [],
+        mentions:
+            json['mentions'] != null ? List<String>.from(json['mentions']) : [],
+        replyToMessageId: json['replyToMessageId'],
+        isSend: json['isSend'] != null ? (json['isSend']) : false);
   }
 
   // Convert ChatModel to JSON
@@ -101,7 +155,8 @@ class ChatModel {
       'reactions': reactions,
       'mentions': mentions,
       'replyToMessageId': replyToMessageId,
-      'createdAt': FieldValue.serverTimestamp()
+      'createdAt': FieldValue.serverTimestamp(),
+      'isSend': isSend
     };
   }
 }

@@ -1,4 +1,4 @@
-import 'package:chatter/controller/contacts.dart';
+import 'package:chatter/model/chat.dart';
 import 'package:chatter/services/local_service.dart';
 import 'package:chatter/theme/notification_bar_theme.dart';
 import 'package:chatter/theme/styles.dart';
@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'firebase_options.dart';
 
@@ -16,7 +17,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ScreenUtil.ensureScreenSize();
   await GetStorage.init();
-
+  await Hive.initFlutter();
+  Hive.registerAdapter(ChatModelAdapter());
+  Hive.registerAdapter(MessageTypeAdapter());
   LocalService.onInit();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,

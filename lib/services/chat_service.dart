@@ -111,7 +111,7 @@ class ChatRoomService {
     return users.join('_');
   }
 
-  static Future<void> sendMessage({
+  static Future<bool> sendMessage({
     required String chatRoomId,
     required ChatModel message,
   }) async {
@@ -142,14 +142,20 @@ class ChatRoomService {
         'lastMessageTime': message.timestamp,
         'lastMessageSenderId': message.senderId,
         'lastMessageType': message.messageType?.toString().split('.').last,
-      });
-
+      }).then(
+        (value) {
+          return true;
+        },
+      ).onError(
+        (error, stackTrace) {
+          return false;
+        },
+      );
       print('Message sent successfully!');
+      return true;
     } catch (e) {
       print('Error sending message: $e');
+      return false;
     }
   }
-
-
-  
 }

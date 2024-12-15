@@ -9,7 +9,6 @@ import 'package:get/get.dart';
 
 class AnimatedSearchAppBar extends StatelessWidget
     implements PreferredSizeWidget {
-    
   const AnimatedSearchAppBar({super.key});
 
   @override
@@ -60,7 +59,7 @@ class AnimatedSearchAppBar extends StatelessWidget
                   key: const ValueKey('title'),
                   children: [
                     CircleAvatar(
-                      radius: 18.r,
+                      radius: 23,
                       backgroundImage:
                           NetworkImage(LocalService.imageUrl ?? ""),
                     ),

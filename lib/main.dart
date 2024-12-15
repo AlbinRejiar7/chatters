@@ -1,3 +1,5 @@
+import 'package:chatter/controller/contacts.dart';
+import 'package:chatter/controller/home.dart';
 import 'package:chatter/model/chat.dart';
 import 'package:chatter/services/local_service.dart';
 import 'package:chatter/theme/notification_bar_theme.dart';
@@ -24,6 +26,10 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // var ctr = Get.put(ContactsController());
+  // await ctr.fetchContacts();
+  // await ctr.fetchMatchingContacts();
+
   runApp(const MyApp());
 }
 
@@ -42,9 +48,50 @@ class MyApp extends StatelessWidget {
           themeMode: themeMode,
           theme: ThemeStyles.lightTheme,
           darkTheme: ThemeStyles.darkTheme,
-          home: (LocalService.isLoggedIn ?? false)
-              ? BottomBarPage()
-              : SendOtpPage()),
+          home: InitializationScreen()),
     );
+  }
+}
+
+class InitializationScreen extends StatefulWidget {
+  @override
+  _InitializationScreenState createState() => _InitializationScreenState();
+}
+
+class _InitializationScreenState extends State<InitializationScreen> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    // Fetch and process contacts
+    var contactsController = Get.put(ContactsController());
+
+    // Initialize HomeController
+    Get.put(HomeController());
+
+    // Once initialization is done, navigate to the main screen
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    } else {
+      return (LocalService.isLoggedIn ?? false)
+          ? BottomBarPage()
+          : SendOtpPage(); // Replace with your main screen
+    }
   }
 }

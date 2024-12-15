@@ -2,28 +2,30 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatRoomDetailModel {
   // Common fields for both individual and group chats
-  String? chatRoomId; // Unique ID for the chat room
-  bool? isGroup; // Indicates if the chat is a group chat
-  String? chatRoomName; // Group name or custom name for the chat
-  String? chatRoomImage; // Group image or contact profile picture
-  DateTime? createdAt; // When the chat room was created
-  DateTime? updatedAt; // When the chat room was last updated
-  List<String>? participants; // List of user IDs participating in the chat
-  String? lastMessage; // Preview of the last message in the chat
-  DateTime? lastMessageTime; // Timestamp of the last message
-  String? lastMessageSenderId; // ID of the sender of the last message
-  int? unReadMessagesCount; // Count of unread messages
-  String? lastMessageType; // Type of the last message (e.g., text, image)
+  String? chatRoomId;
+  bool? isGroup;
+  String? chatRoomName;
+  String? chatRoomImage;
+  DateTime? createdAt;
+  DateTime? updatedAt;
+  List<String>? participants;
+  String? lastMessage;
+  DateTime? lastMessageTime;
+  String? lastMessageSenderId;
+  Map<String, int>?
+      unReadMessagesCountMap; // Map to store unread messages per user
+  String? lastMessageType;
+  String? receiverId;
 
   // Specific fields for group chats
-  String? groupAdminId; // ID of the group admin (only for groups)
-  List<String>? groupAdmins; // List of group admins (for larger groups)
-  List<String>? pinnedMessages; // List of message IDs pinned in the group
-  String? description; // Group description (only for groups)
+  String? groupAdminId;
+  List<String>? groupAdmins;
+  List<String>? pinnedMessages;
+  String? description;
 
   // New fields for archiving and pinning
-  bool? archive; // Whether the chat is archived
-  bool? pinChat; // Whether the chat is pinned
+  bool? archive;
+  bool? pinChat;
 
   // Constructor
   ChatRoomDetailModel({
@@ -37,8 +39,9 @@ class ChatRoomDetailModel {
     this.lastMessage,
     this.lastMessageTime,
     this.lastMessageSenderId,
-    this.unReadMessagesCount,
+    this.unReadMessagesCountMap, // Added here
     this.lastMessageType,
+    this.receiverId,
     this.groupAdminId,
     this.groupAdmins,
     this.pinnedMessages,
@@ -46,8 +49,6 @@ class ChatRoomDetailModel {
     this.archive,
     this.pinChat,
   });
-
-  // Factory constructor to parse from a Map (useful for Firestore data)
   factory ChatRoomDetailModel.fromMap(Map<String, dynamic> map) {
     return ChatRoomDetailModel(
       chatRoomId: map['chatRoomId'] as String?,
@@ -68,8 +69,11 @@ class ChatRoomDetailModel {
           ? (map['lastMessageTime'] as Timestamp).toDate()
           : null,
       lastMessageSenderId: map['lastMessageSenderId'] as String?,
-      unReadMessagesCount: map['unReadMessagesCount'] as int?,
+      unReadMessagesCountMap: map['unReadMessagesCount'] is Map
+          ? Map<String, int>.from(map['unReadMessagesCount'] as Map)
+          : {}, // Fallback to an empty map if it's not a Map
       lastMessageType: map['lastMessageType'] as String?,
+      receiverId: map['receiverId'] as String?,
       groupAdminId: map['groupAdminId'] as String?,
       groupAdmins: map['groupAdmins'] != null
           ? List<String>.from(map['groupAdmins'] as List)
@@ -97,8 +101,9 @@ class ChatRoomDetailModel {
       'lastMessageTime':
           lastMessageTime != null ? Timestamp.fromDate(lastMessageTime!) : null,
       'lastMessageSenderId': lastMessageSenderId,
-      'unReadMessagesCount': unReadMessagesCount,
+      'unReadMessagesCount': unReadMessagesCountMap, // Adding the map here
       'lastMessageType': lastMessageType,
+      'receiverId': receiverId,
       'groupAdminId': groupAdminId,
       'groupAdmins': groupAdmins,
       'pinnedMessages': pinnedMessages,
@@ -115,14 +120,15 @@ class ChatRoomDetailModel {
       'isGroup': isGroup ?? false,
       'chatRoomName': chatRoomName ?? '',
       'chatRoomImage': chatRoomImage ?? '',
-      'createdAt': FieldValue.serverTimestamp(), // Set server timestamp
-      'updatedAt': FieldValue.serverTimestamp(), // Set server timestamp
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
       'participants': participants ?? [],
       'lastMessage': lastMessage ?? '',
-      'lastMessageTime': FieldValue.serverTimestamp(), // Set server timestamp
+      'lastMessageTime': FieldValue.serverTimestamp(),
       'lastMessageSenderId': lastMessageSenderId ?? '',
-      'unReadMessagesCount': unReadMessagesCount ?? 0,
+      'unReadMessagesCount': unReadMessagesCountMap ?? {}, // Save the map here
       'lastMessageType': lastMessageType ?? 'text',
+      'receiverId': receiverId ?? '',
       'groupAdminId': groupAdminId ?? '',
       'groupAdmins': groupAdmins ?? [],
       'pinnedMessages': pinnedMessages ?? [],

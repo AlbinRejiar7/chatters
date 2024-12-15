@@ -8,7 +8,7 @@ part of 'chat.dart';
 
 class ChatModelAdapter extends TypeAdapter<ChatModel> {
   @override
-  final int typeId = 0;
+  final int typeId = 1;
 
   @override
   ChatModel read(BinaryReader reader) {
@@ -42,7 +42,7 @@ class ChatModelAdapter extends TypeAdapter<ChatModel> {
   @override
   void write(BinaryWriter writer, ChatModel obj) {
     writer
-      ..writeByte(19)
+      ..writeByte(20)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -80,7 +80,8 @@ class ChatModelAdapter extends TypeAdapter<ChatModel> {
       ..writeByte(17)
       ..write(obj.mentions)
       ..writeByte(18)
-      ..write(obj.replyToMessageId);
+      ..write(obj.replyToMessageId)
+      ..writeByte(19);
   }
 
   @override
@@ -96,7 +97,7 @@ class ChatModelAdapter extends TypeAdapter<ChatModel> {
 
 class MessageTypeAdapter extends TypeAdapter<MessageType> {
   @override
-  final int typeId = 1;
+  final int typeId = 2;
 
   @override
   MessageType read(BinaryReader reader) {

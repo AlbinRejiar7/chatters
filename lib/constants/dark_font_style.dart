@@ -7,7 +7,7 @@ const color = AppColors.whiteColor;
 
 class DarkFontStyle {
   static TextStyle textMedium = GoogleFonts.poppins(
-      fontWeight: FontWeight.w400, color: color, fontSize: 12);
+      fontWeight: FontWeight.w400, color: color, fontSize: 12.sp);
   static TextStyle titleMedium = GoogleFonts.poppins(
     fontWeight: FontWeight.w500,
     color: color,
@@ -23,5 +23,10 @@ class DarkFontStyle {
     fontWeight: FontWeight.w400,
     color: color.withOpacity(0.6),
     fontSize: 10.sp,
+  );
+  static TextStyle unreadCountText = GoogleFonts.poppins(
+    fontWeight: FontWeight.w400,
+    color: color.withOpacity(0.6),
+    fontSize: 7.sp,
   );
 }

@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:chatter/controller/contacts.dart';
 import 'package:chatter/controller/country_selector.dart';
 import 'package:chatter/model/user.dart';
 import 'package:chatter/services/firebase_services.dart';
@@ -56,6 +57,7 @@ class FirebaseAuthServices {
       // Check if the user is new
       if (userCredential.additionalUserInfo?.isNewUser ?? false) {
         // Navigate to registration screen
+
         Get.to(
             () => SetProfilePage(
                   phonNumber: number,
@@ -71,6 +73,7 @@ class FirebaseAuthServices {
           kphNumber: userDetails?.phoneNumber ?? "",
         );
         LocalService.setLoginStatus(true);
+        Get.put(ContactsController());
         Get.offAll(() => const BottomBarPage(),
             transition: Transition.cupertino);
       }

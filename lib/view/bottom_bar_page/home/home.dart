@@ -1,6 +1,7 @@
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/controller/home.dart';
 import 'package:chatter/model/chat_room_detail.dart';
+import 'package:chatter/services/local_service.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
 import 'package:chatter/view/chat/chat.dart';
 import 'package:flutter/material.dart';
@@ -12,53 +13,66 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var ctr = Get.put(HomeController());
+    var ctr = Get.find<HomeController>();
     return Scaffold(
       extendBody: true,
       extendBodyBehindAppBar: true,
-      body: ListView.separated(
-        separatorBuilder: (context, index) => Padding(
-          padding: EdgeInsets.only(left: (72.w)),
-          child: Divider(
-            thickness: 0.2,
-            height: 14,
-            color: Theme.of(context).colorScheme.secondary,
+      body: Obx(() {
+        return ListView.separated(
+          separatorBuilder: (context, index) => Padding(
+            padding: EdgeInsets.only(left: (72.w)),
+            child: Divider(
+              thickness: 0.2,
+              height: 14,
+              color: Theme.of(context).colorScheme.secondary,
+            ),
           ),
-        ),
-        itemCount: ctr.chatRooms.length,
-        itemBuilder: (BuildContext context, int index) {
-          var chat = ctr.chatRooms[index];
-          return CustomUserTile(
-            chatRoomDetailModel: chat,
-          );
-        },
-      ),
+          itemCount: ctr.chatRooms.length,
+          itemBuilder: (BuildContext context, int index) {
+            var chat = ctr.chatRooms[index];
+            return CustomUserTile(
+              currentContactNumberasId: chat.participants
+                      ?.firstWhere(
+                        (element) => element != LocalService.userId,
+                      )
+                      .toString() ??
+                  "",
+              chatRoomDetailModel: chat,
+            );
+          },
+        );
+      }),
     );
   }
 }
 
 class CustomUserTile extends StatelessWidget {
   final ChatRoomDetailModel chatRoomDetailModel;
+  final String currentContactNumberasId;
   const CustomUserTile({
     super.key,
     required this.chatRoomDetailModel,
+    required this.currentContactNumberasId,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       minTileHeight: 0,
+      contentPadding: EdgeInsets.symmetric(horizontal: 16.w),
       onTap: () {
         Get.to(
             () => ChatPage(
-                  chatRoomId: chatRoomDetailModel.chatRoomId ?? "",
-                  receiverId: '',
+                  unreadCount: chatRoomDetailModel
+                          .unReadMessagesCountMap?["${LocalService.userId}"] ??
+                      0,
+                  receiverId: currentContactNumberasId,
                   name: chatRoomDetailModel.chatRoomName ?? "",
                 ),
             transition: Transition.cupertino);
       },
       leading: CircleAvatar(
-        radius: 18,
+        radius: 23,
         backgroundImage: NetworkImage(
           chatRoomDetailModel.chatRoomImage ?? "",
         ),
@@ -78,10 +92,29 @@ class CustomUserTile extends StatelessWidget {
           ),
         ],
       ),
-      trailing: Text(
-        chatRoomDetailModel.lastMessageTime?.hour.toString() ?? "",
-        style: Theme.of(context).primaryTextTheme.labelSmall,
-      ),
+      trailing: Visibility(
+          visible: chatRoomDetailModel
+                      .unReadMessagesCountMap?["${LocalService.userId}"] !=
+                  0 &&
+              chatRoomDetailModel
+                      .unReadMessagesCountMap?["${LocalService.userId}"] !=
+                  null,
+          child: CircleAvatar(
+            radius: 8,
+            backgroundColor: AppColors.primaryColor,
+            child: Center(
+              child: Text(
+                chatRoomDetailModel
+                        .unReadMessagesCountMap?["${LocalService.userId}"]
+                        .toString() ??
+                    "",
+                style: Theme.of(context)
+                    .primaryTextTheme
+                    .bodyMedium!
+                    .copyWith(fontSize: 8.sp, fontWeight: FontWeight.bold),
+              ),
+            ),
+          )),
     );
   }
 }

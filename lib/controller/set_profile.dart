@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:chatter/controller/contacts.dart';
 import 'package:chatter/controller/country_selector.dart';
 import 'package:chatter/services/firebase_services.dart';
 import 'package:chatter/services/firebase_storage.dart';
@@ -81,6 +82,7 @@ class SetProfileController extends GetxController {
           kuserName: username,
           kphNumber: phNumberWithCountryCode);
       LocalService.setLoginStatus(true);
+      Get.put(ContactsController());
       Get.offAll(() => BottomBarPage());
       print("User registered and data saved to Firestore successfully.");
     } catch (e) {

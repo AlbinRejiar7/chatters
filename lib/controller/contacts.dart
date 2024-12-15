@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:chatter/model/user.dart';
 import 'package:chatter/services/firebase_services.dart';
 import 'package:chatter/services/local_service.dart';
@@ -5,11 +7,11 @@ import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:get/get.dart';
 
 class ContactsController extends GetxController {
-  List<Contact> contacts = []; // All contacts fetched from the device
   List<String> contactNumbers = []; // Normalized phone numbers from contacts
   RxList<Contact> matchingContacts = <Contact>[].obs; // Matching contacts
   var isLoading = false.obs;
   var listOfMyContacts = <UserModel>[].obs;
+  List<Contact> contacts = []; // All contacts fetched from the device
   Future fetchContacts() async {
     final hasPermission = await FlutterContacts.requestPermission();
 
@@ -22,6 +24,7 @@ class ContactsController extends GetxController {
           .where((contact) => contact.phones.isNotEmpty)
           .map((contact) => contact.phones.first.normalizedNumber)
           .toList();
+      log("my all contacts ${contactNumbers}");
     } else {
       Get.snackbar("PERMISSION", "Permission Denied");
     }
@@ -137,23 +140,34 @@ class ContactsController extends GetxController {
       listOfMyContacts.value = matchingContacts
           .map((contact) {
             final phone = contact.phones.first.normalizedNumber;
-            final user =
-                matchedUsers.firstWhere((user) => user.phoneNumber == phone,
-                    orElse: () => UserModel(
-                          id: 'id',
-                          username: 'username',
-                          isOnline: true,
-                          lastSeen: DateTime.now(),
-                          createdAt: DateTime.now(),
-                          updatedAt: DateTime.now(),
-                        ));
+
+            // Check if this phone number already exists in the list
+            if (listOfMyContacts.value
+                .any((user) => user.phoneNumber == phone)) {
+              return null; // Skip duplicates
+            }
+
+            final user = matchedUsers.firstWhere(
+              (user) => user.phoneNumber == phone,
+              orElse: () => UserModel(
+                id: 'id',
+                username: 'username',
+                isOnline: true,
+                lastSeen: DateTime.now(),
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+              ),
+            );
+
             if (user.id != LocalService.userId) {
               user.username = contact.displayName; // Update with contact name
               return user;
             }
             return null;
           })
-          .whereType<UserModel>()
+          .whereType<UserModel>() // Remove nulls
+          .toList()
+          .toSet()
           .toList();
     } catch (e) {
       Get.snackbar("ERROR", "Failed to fetch matching contacts: $e");
@@ -163,9 +177,12 @@ class ContactsController extends GetxController {
   @override
   void onInit() async {
     super.onInit();
-    isLoading.value = true;
-    await fetchContacts();
-    await fetchMatchingContacts();
-    isLoading.value = false;
+    await FlutterContacts.requestPermission();
+    if (LocalService.isLoggedIn ?? false) {
+      isLoading.value = true;
+      await fetchContacts();
+      await fetchMatchingContacts();
+      isLoading.value = false;
+    }
   }
 }

@@ -1,25 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:hive_flutter/adapters.dart';
+import 'package:hive/hive.dart';
 
-part 'chat.g.dart';
+part 'chat.g.dart'; // Required for generating Hive adapter code
 
-@HiveType(typeId: 1)
-enum MessageType {
-  @HiveField(0)
-  text,
-  @HiveField(1)
-  image,
-  @HiveField(2)
-  video,
-  @HiveField(3)
-  audio,
-  @HiveField(4)
-  file,
-  @HiveField(5)
-  location,
-}
-
-@HiveType(typeId: 0)
+@HiveType(typeId: 1) // Specify a unique type ID for Hive
 class ChatModel {
   @HiveField(0)
   String? id;
@@ -77,6 +61,9 @@ class ChatModel {
 
   @HiveField(18)
   String? replyToMessageId;
+
+
+
   ChatModel({
     this.id,
     this.senderId,
@@ -98,40 +85,38 @@ class ChatModel {
     this.mentions,
     this.replyToMessageId,
   });
-
-  // Factory method to create a ChatModel from JSON
   factory ChatModel.fromJson(Map<String, dynamic> json) {
     return ChatModel(
-        id: json['id'],
-        senderId: json['senderId'],
-        senderName: json['senderName'],
-        receiverId: json['receiverId'],
-        message: json['message'],
-        timestamp: json['timestamp'] != null
-            ? DateTime.parse(json['timestamp'])
-            : null,
-        isSentByMe: json['isSentByMe'],
-        isRead: json['isRead'],
-        messageType: json['messageType'] != null
-            ? MessageType.values.firstWhere(
-                (e) => e.toString() == 'MessageType.${json['messageType']}',
-              )
-            : null,
-        mediaUrl: json['mediaUrl'],
-        thumbnailUrl: json['thumbnailUrl'],
-        fileName: json['fileName'],
-        fileSize: json['fileSize'],
-        location: json['location'] != null
-            ? Map<String, double>.from(json['location'])
-            : null,
-        isDeleted: json['isDeleted'],
-        reactions: json['reactions'] != null
-            ? List<String>.from(json['reactions'])
-            : [],
-        mentions:
-            json['mentions'] != null ? List<String>.from(json['mentions']) : [],
-        replyToMessageId: json['replyToMessageId'],
-        isSend: json['isSend'] != null ? (json['isSend']) : false);
+      id: json['id'],
+      senderId: json['senderId'],
+      senderName: json['senderName'],
+      receiverId: json['receiverId'],
+      message: json['message'],
+      timestamp:
+          json['timestamp'] != null ? DateTime.parse(json['timestamp']) : null,
+      isSentByMe: json['isSentByMe'],
+      isRead: json['isRead'],
+      messageType: json['messageType'] != null
+          ? MessageType.values.firstWhere(
+              (e) => e.toString() == 'MessageType.${json['messageType']}',
+            )
+          : null,
+      mediaUrl: json['mediaUrl'],
+      thumbnailUrl: json['thumbnailUrl'],
+      fileName: json['fileName'],
+      fileSize: json['fileSize'],
+      location: json['location'] != null
+          ? Map<String, double>.from(json['location'])
+          : null,
+      isDeleted: json['isDeleted'],
+      reactions:
+          json['reactions'] != null ? List<String>.from(json['reactions']) : [],
+      mentions:
+          json['mentions'] != null ? List<String>.from(json['mentions']) : [],
+      replyToMessageId: json['replyToMessageId'],
+
+      isSend: json['isSend'] ?? false,
+    );
   }
 
   // Convert ChatModel to JSON
@@ -156,7 +141,28 @@ class ChatModel {
       'mentions': mentions,
       'replyToMessageId': replyToMessageId,
       'createdAt': FieldValue.serverTimestamp(),
-      'isSend': isSend
+      'isSend': isSend,
     };
   }
+}
+
+@HiveType(typeId: 2)
+enum MessageType {
+  @HiveField(0)
+  text,
+
+  @HiveField(1)
+  image,
+
+  @HiveField(2)
+  video,
+
+  @HiveField(3)
+  audio,
+
+  @HiveField(4)
+  file,
+
+  @HiveField(5)
+  location,
 }

@@ -1,14 +1,12 @@
-import 'dart:io';
-
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/controller/chat.dart';
 import 'package:chatter/controller/set_profile.dart';
 import 'package:chatter/model/chat.dart';
 import 'package:chatter/services/chat_service.dart';
-import 'package:chatter/services/firebase_storage.dart';
 import 'package:chatter/services/local_service.dart';
 import 'package:chatter/utils/format_time.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
+import 'package:chatter/view/chat/widgets/delete.dart';
 import 'package:chatter/view/chat/widgets/plus_icon.dart';
 import 'package:chatter/widgets/chat_app_bar.dart';
 import 'package:flutter/cupertino.dart';
@@ -16,21 +14,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:uuid/uuid.dart';
 
 class ChatPage extends StatelessWidget {
   final String name;
-  final String chatRoomId;
   final String receiverId;
+  final int unreadCount;
   const ChatPage(
       {super.key,
       required this.name,
-      required this.chatRoomId,
-      required this.receiverId});
+      required this.receiverId,
+      required this.unreadCount});
 
   @override
   Widget build(BuildContext context) {
-    final ctr = Get.put(ChatPageController(chatRoomId: chatRoomId));
+    final chatRoomId = ChatRoomService.getConversationID(receiverId);
+    final ctr = Get.put(ChatPageController(
+      receiverId,
+      unreadCount,
+      chatRoomId: chatRoomId,
+    ));
     final SetProfileController controller = Get.put(SetProfileController());
     return Scaffold(
       extendBody: true,
@@ -43,72 +45,93 @@ class ChatPage extends StatelessWidget {
         children: [
           Expanded(
             child: Obx(
-              () => ListView.builder(
-                reverse: true,
-                // key: ctr
-                //     .listKey, // Optional: Remove this if not required for normal ListView
-                // controller: ctr.scrollController,
-                itemCount: ctr.sampleChats.length,
-                itemBuilder: (context, index) {
-                  final chat = ctr.sampleChats.reversed.toList()[index];
-                  chat.isSentByMe = chat.senderId == LocalService.userId;
-                  final ChatModel? previous =
-                      index > 0 ? ctr.sampleChats[index - 1] : null;
-                  final ChatModel? next = index < ctr.sampleChats.length - 1
-                      ? ctr.sampleChats[index + 1]
-                      : null;
+              () => ctr.sampleChats.isEmpty
+                  ? Center(
+                      child: Text(
+                        textAlign: TextAlign.center,
+                        "Send your first message!!",
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    )
+                  : ListView.builder(
+                      reverse: true,
+                      // key: ctr
+                      //     .listKey, // Optional: Remove this if not required for normal ListView
+                      // controller: ctr.scrollController,
+                      itemCount: ctr.sampleChats.length,
+                      itemBuilder: (context, index) {
+                        var reversedChat = ctr.sampleChats.reversed.toList();
 
-                  // Check if this message should display a date header
-                  // final bool showDateHeader = previous == null ||
-                  //     !isSameDay(chat.timestamp, previous.timestamp);
+                        final chat = reversedChat[index];
+                        chat.isSentByMe = chat.senderId == LocalService.userId;
+                        final ChatModel? previous =
+                            index > 0 ? reversedChat[index - 1] : null;
+                        final ChatModel? next = index < reversedChat.length - 1
+                            ? reversedChat[index + 1]
+                            : null;
 
-                  return Column(
-                    children: [
-                      // Uncomment for date headers:
-                      // if (showDateHeader) ...[
-                      //   Center(
-                      //     child: Padding(
-                      //       padding: const EdgeInsets.only(bottom: 5),
-                      //       child: Text(formatDate(chat.timestamp),
-                      //           style: Theme.of(context)
-                      //               .textTheme
-                      //               .bodyLarge
-                      //               ?.copyWith(fontWeight: FontWeight.normal)),
-                      //     ),
-                      //   ),
-                      // ],
+                        // Check if this message should display a date header
+                        // final bool showDateHeader = previous == null ||
+                        //     !isSameDay(chat.timestamp, previous.timestamp);
+                        // if (chat.senderId == LocalService.userId) {
+                        //   if (chat.isRead == false) {
+                        //     ChatRoomService.setReadToTrue(receiverId, chat.id ?? "");
+                        //   }
+                        // }
+                        return Column(
+                          children: [
+                            // Uncomment for date headers:
+                            // if (showDateHeader) ...[
+                            //   Center(
+                            //     child: Padding(
+                            //       padding: const EdgeInsets.only(bottom: 5),
+                            //       child: Text(formatDate(chat.timestamp),
+                            //           style: Theme.of(context)
+                            //               .textTheme
+                            //               .bodyLarge
+                            //               ?.copyWith(fontWeight: FontWeight.normal)),
+                            //     ),
+                            //   ),
+                            // ],
 
-                      GetBuilder<ChatPageController>(builder: (__) {
-                        return chat.messageType == MessageType.image
-                            ? Row(
-                                mainAxisAlignment: (chat.isSentByMe ?? false)
-                                    ? MainAxisAlignment.end
-                                    : MainAxisAlignment.start,
-                                children: [
-                                  chat.isSend ?? false
-                                      ? Image.network(
-                                          chat.mediaUrl ?? "",
-                                          height: 200,
-                                        )
-                                      : CupertinoActivityIndicator(
-                                          radius: 50,
-                                          color: AppColors.primaryColor,
+                            GetBuilder<ChatPageController>(builder: (__) {
+                              return chat.messageType == MessageType.image
+                                  ? Row(
+                                      mainAxisAlignment:
+                                          (chat.isSentByMe ?? false)
+                                              ? MainAxisAlignment.end
+                                              : MainAxisAlignment.start,
+                                      children: [
+                                        chat.isSend ?? false
+                                            ? Image.network(
+                                                chat.mediaUrl ?? "",
+                                                height: 200,
+                                              )
+                                            : CupertinoActivityIndicator(
+                                                radius: 50,
+                                                color: AppColors.primaryColor,
+                                              ),
+                                      ],
+                                    )
+                                  : GestureDetector(
+                                      onLongPress: () {
+                                        showDeleteMessageDialog(
+                                            context, chatRoomId, chat.id ?? '');
+                                      },
+                                      child: SizedBox(
+                                        width: context.width,
+                                        child: TextMessageBubble(
+                                          chat: chat,
+                                          previous: previous,
+                                          next: next,
                                         ),
-                                ],
-                              )
-                            : SizedBox(
-                                width: context.width,
-                                child: TextMessageBubble(
-                                  chat: chat,
-                                  previous: previous,
-                                  next: next,
-                                ),
-                              );
-                      }),
-                    ],
-                  );
-                },
-              ),
+                                      ),
+                                    );
+                            }),
+                          ],
+                        );
+                      },
+                    ),
             ),
           ),
 
@@ -120,66 +143,9 @@ class ChatPage extends StatelessWidget {
                 kWidth((13.w)),
                 SendMicButton(
                   isSend: true,
-                  onTap: () async {
-                    if (ctr.messageController.text.trim().isNotEmpty) {
-                      var message = ChatModel(
-                        id: const Uuid().v4(),
-                        senderId: LocalService.userId,
-                        senderName: LocalService.userName,
-                        message: ctr.messageController.text.trim(),
-                        timestamp: DateTime.now(),
-                        isSentByMe: true,
-                        isRead: false,
-                        isSend: false,
-                        mediaUrl: "",
-                        messageType: MessageType.image,
-                        receiverId: receiverId,
-                      );
-                      ctr.sampleChats.add(message);
-                      // await Future.delayed(
-                      //   const Duration(milliseconds: 10),
-                      //   () {},
-                      // );
-                      var mediaUrl =
-                          await FirebaseStorageSerivce.uploadUserImage(
-                        phoneNumber: message.receiverId ?? "",
-                        imageFile: File(controller.profileImage.value!.path),
-                      );
-                      message.isSend = true;
-                      message.mediaUrl = mediaUrl;
-                      ChatRoomService.sendMessage(
-                              chatRoomId: chatRoomId, message: message)
-                          .then(
-                        (value) {
-                          if (value) {
-                            ctr.update();
-                          }
-                        },
-                      );
-                      ctr.messageController.clear();
-                    }
+                  onTap: () {
+                    ctr.sendMessage();
                   },
-                ),
-                Obx(
-                  () => GestureDetector(
-                    onTap: controller.pickImage,
-                    child: CircleAvatar(
-                      radius: 50.r,
-                      backgroundColor: AppColors.greyColor,
-                      backgroundImage: controller.profileImage.value != null
-                          ? FileImage(
-                              File(controller.profileImage.value!.path),
-                            )
-                          : null,
-                      child: controller.profileImage.value == null
-                          ? Icon(
-                              Icons.camera_alt,
-                              size: 40,
-                              color: AppColors.primaryColor,
-                            )
-                          : null,
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -256,85 +222,106 @@ class TextMessageBubble extends StatelessWidget {
           ? CrossAxisAlignment.end
           : CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-          margin: !(chat.isSentByMe ?? false)
-              ? EdgeInsets.only(
-                  top: 1,
-                  bottom: (previous?.senderId == chat.senderId &&
-                              next?.senderId != chat.senderId) ||
-                          (previous?.senderId != chat.senderId &&
-                              next?.senderId != chat.senderId)
-                      ? 10
-                      : 1,
-                  right: chat.isSentByMe ?? false ? (8.w) : (100.w),
-                  left: chat.isSentByMe ?? false ? (100.w) : (8.w))
-              : EdgeInsets.only(
-                  top: 1,
-                  bottom: (previous?.senderId == chat.senderId &&
-                              next?.senderId != chat.senderId) ||
-                          (previous?.senderId != chat.senderId &&
-                              next?.senderId != chat.senderId)
-                      ? 10
-                      : 1,
-                  right: chat.isSentByMe ?? false ? 8 : 100,
-                  left: chat.isSentByMe ?? false ? 100 : 8),
-          decoration: BoxDecoration(
-            color: chat.isSentByMe ?? false
-                ? AppColors.primaryColor
-                : AppColors.primaryLight,
-            borderRadius: buildMessageBubbleRadius(
-              chat,
-              previous,
-              next,
-              chat.isSentByMe ?? false,
-            ),
+        chat.isSentByMe ?? false
+            ? buildSenderBubble(context, chat)
+            : buildReceiverBubble(context, chat),
+      ],
+    );
+  }
+
+  /// Builds the bubble for messages sent by the user.
+  Widget buildSenderBubble(BuildContext context, ChatModel chat) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      margin: EdgeInsets.only(
+        top: 1,
+        bottom: shouldAddBottomSpacing() ? 10 : 1,
+        right: 8,
+        left: 100,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primaryColor,
+        borderRadius: buildMessageBubbleRadius(
+          chat,
+          previous,
+          next,
+          true,
+        ),
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        crossAxisAlignment: WrapCrossAlignment.end,
+        children: [
+          Text(
+            chat.message ?? '',
+            style: const TextStyle(color: Colors.white),
           ),
-          child: Wrap(
-            alignment: WrapAlignment.end,
+          kWidth(context.width * 0.02),
+          Wrap(
             crossAxisAlignment: WrapCrossAlignment.end,
             children: [
               Text(
-                chat.message ?? '',
-                style: TextStyle(
-                  color: chat.isSentByMe ?? false ? Colors.white : Colors.black,
+                formatTime(chat.timestamp),
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  color: Colors.white70,
                 ),
               ),
-              kWidth(context.width * 0.02),
-              Visibility(
-                visible: chat.isSentByMe ?? false,
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.end,
-                  children: [
-                    Text(
-                      formatTime(chat.timestamp),
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        color: chat.isSentByMe ?? false
-                            ? Colors.white70
-                            : Colors.black54,
-                      ),
-                    ),
-                    kWidth(context.width * 0.01),
-                    getChatStatusIcon(
-                        chat.isSend ?? false ? 'send' : 'sending', context),
-                  ],
-                ),
-              )
+              kWidth(context.width * 0.01),
+              getChatStatusIcon(
+                (chat.isRead ?? false)
+                    ? "seen"
+                    : (chat.isSend ?? false ? 'send' : 'sending'),
+                context,
+              ),
             ],
-          ),
-        ),
-        // if (chat.isSentByMe ?? false)
-        //   Obx(() {
-        //     return !(chat.isSend?.value ?? false)
-        //         ? Icon(
-        //             Icons.schedule,
-        //             size: 10,
-        //           )
-        //         : SizedBox.shrink();
-        //   })
-      ],
+          )
+        ],
+      ),
     );
+  }
+
+  /// Builds the bubble for messages received from the other user.
+  Widget buildReceiverBubble(BuildContext context, ChatModel chat) {
+    // if (chat.isRead == null) {
+    //   ChatRoomService.setReadToTrue(
+    //       senderId: chat.senderId ?? "", messageId: chat.id ?? "");
+    // }
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 7.h),
+      margin: EdgeInsets.only(
+        top: 1,
+        bottom: shouldAddBottomSpacing() ? 10 : 1,
+        right: 100,
+        left: 8,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: buildMessageBubbleRadius(
+          chat,
+          previous,
+          next,
+          false,
+        ),
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.start,
+        crossAxisAlignment: WrapCrossAlignment.end,
+        children: [
+          Text(
+            chat.message ?? '',
+            style: const TextStyle(color: Colors.black),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Determines if the bottom spacing should be added to the bubble.
+  bool shouldAddBottomSpacing() {
+    return (previous?.senderId != chat.senderId &&
+        next?.senderId != chat.senderId);
   }
 }
 

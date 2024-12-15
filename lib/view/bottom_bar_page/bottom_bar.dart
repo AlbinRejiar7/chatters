@@ -1,5 +1,4 @@
 import 'package:chatter/controller/bottom_bar.dart';
-import 'package:chatter/controller/contacts.dart';
 import 'package:chatter/widgets/appbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -10,7 +9,6 @@ class BottomBarPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Get.put(ContactsController());
     var ctr = Get.put(BottomBarController());
     return Scaffold(
       appBar: const AnimatedSearchAppBar(),

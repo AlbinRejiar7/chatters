@@ -42,7 +42,7 @@ class ChatModelAdapter extends TypeAdapter<ChatModel> {
   @override
   void write(BinaryWriter writer, ChatModel obj) {
     writer
-      ..writeByte(20)
+      ..writeByte(19)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -80,8 +80,7 @@ class ChatModelAdapter extends TypeAdapter<ChatModel> {
       ..writeByte(17)
       ..write(obj.mentions)
       ..writeByte(18)
-      ..write(obj.replyToMessageId)
-      ..writeByte(19);
+      ..write(obj.replyToMessageId);
   }
 
   @override

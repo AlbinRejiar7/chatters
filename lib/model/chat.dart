@@ -62,8 +62,6 @@ class ChatModel {
   @HiveField(18)
   String? replyToMessageId;
 
-
-
   ChatModel({
     this.id,
     this.senderId,
@@ -85,38 +83,51 @@ class ChatModel {
     this.mentions,
     this.replyToMessageId,
   });
+
+  // Factory to parse JSON with added type safety
   factory ChatModel.fromJson(Map<String, dynamic> json) {
     return ChatModel(
-      id: json['id'],
-      senderId: json['senderId'],
-      senderName: json['senderName'],
-      receiverId: json['receiverId'],
-      message: json['message'],
-      timestamp:
-          json['timestamp'] != null ? DateTime.parse(json['timestamp']) : null,
-      isSentByMe: json['isSentByMe'],
-      isRead: json['isRead'],
+      id: json['id']?.toString(),
+      senderId: json['senderId']?.toString(),
+      senderName: json['senderName']?.toString(),
+      receiverId: json['receiverId']?.toString(),
+      message: json['message']?.toString(),
+      timestamp: json['timestamp'] != null
+          ? DateTime.tryParse(json['timestamp'].toString())
+          : null,
+      isSentByMe: json['isSentByMe'] as bool?,
+      isRead: json['isRead'] as bool?,
       messageType: json['messageType'] != null
-          ? MessageType.values.firstWhere(
-              (e) => e.toString() == 'MessageType.${json['messageType']}',
-            )
+          ? _parseMessageType(json['messageType'])
           : null,
-      mediaUrl: json['mediaUrl'],
-      thumbnailUrl: json['thumbnailUrl'],
-      fileName: json['fileName'],
-      fileSize: json['fileSize'],
+      mediaUrl: json['mediaUrl']?.toString(),
+      thumbnailUrl: json['thumbnailUrl']?.toString(),
+      fileName: json['fileName']?.toString(),
+      fileSize: json['fileSize']?.toString(),
       location: json['location'] != null
-          ? Map<String, double>.from(json['location'])
+          ? Map<String, double>.from(json['location'] as Map)
           : null,
-      isDeleted: json['isDeleted'],
-      reactions:
-          json['reactions'] != null ? List<String>.from(json['reactions']) : [],
-      mentions:
-          json['mentions'] != null ? List<String>.from(json['mentions']) : [],
-      replyToMessageId: json['replyToMessageId'],
-
-      isSend: json['isSend'] ?? false,
+      isDeleted: json['isDeleted'] as bool?,
+      reactions: json['reactions'] != null
+          ? List<String>.from(json['reactions'] as List)
+          : [],
+      mentions: json['mentions'] != null
+          ? List<String>.from(json['mentions'] as List)
+          : [],
+      replyToMessageId: json['replyToMessageId']?.toString(),
+      isSend: json['isSend'] as bool? ?? false,
     );
+  }
+
+  // Helper to parse MessageType safely
+  static MessageType? _parseMessageType(dynamic type) {
+    try {
+      return MessageType.values.firstWhere(
+        (e) => e.toString() == 'MessageType.${type.toString()}',
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   // Convert ChatModel to JSON

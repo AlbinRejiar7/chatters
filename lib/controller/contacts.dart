@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:chatter/model/user.dart';
 import 'package:chatter/services/firebase_services.dart';
 import 'package:chatter/services/local_service.dart';
@@ -24,7 +22,6 @@ class ContactsController extends GetxController {
           .where((contact) => contact.phones.isNotEmpty)
           .map((contact) => contact.phones.first.normalizedNumber)
           .toList();
-      log("my all contacts ${contactNumbers}");
     } else {
       Get.snackbar("PERMISSION", "Permission Denied");
     }

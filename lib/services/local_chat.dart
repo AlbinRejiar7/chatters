@@ -1,58 +1,97 @@
-// import 'dart:developer';
+import 'dart:developer';
 
-// import 'package:chatter/model/chat.dart';
-// import 'package:hive_flutter/hive_flutter.dart';
+import 'package:chatter/model/chat.dart';
+import 'package:chatter/utils/get_box.dart';
 
-// class ChatStorageService {
-//   static const String chatBoxName = "chatBox";
+class ChatStorageService {
+  /// Adds a message to the chat storage for a specific user.
+  static Future<void> addMessage(String chatRoomId, ChatModel message) async {
+    try {
+      final box = await HiveBoxManager.getChatBox();
 
-//   static Future<void> addMessage(String chatUsersId, ChatModel message) async {
-//     final box = await Hive.openBox<List>(chatBoxName);
+      // Retrieve the existing messages for the chat
+      final existingMessages = box.get(chatRoomId, defaultValue: <dynamic>[]);
 
-//     // Retrieve the existing messages for the chat
-//     final existingMessages = box.get(chatUsersId, defaultValue: []);
+      // Convert the existing messages to a list of ChatModel objects
+      final updatedMessages = List<ChatModel>.from(
+        existingMessages?.map((e) => e) ?? [],
+      );
 
-//     // Convert the existing messages to a list of ChatModel objects
-//     final updatedMessages = List<ChatModel>.from(existingMessages ?? []);
+      // Check if the message with the same ID already exists
+      final isMessageAlreadyAdded = updatedMessages
+          .any((existingMessage) => existingMessage.id == message.id);
 
-//     // Check if the message with the same ID already exists
-//     final isMessageAlreadyAdded = updatedMessages
-//         .any((existingMessage) => existingMessage.id == message.id);
+      if (!isMessageAlreadyAdded) {
+        updatedMessages.insert(
+            0, message); // Add the new message at the 0th index
+        await box.put(
+            chatRoomId, updatedMessages); // Save the updated list to the box
+        log("Message added for chatRoomId '$chatRoomId'.");
+      } else {
+        log("Message with ID '${message.id}' already exists, skipping addition.");
+      }
+    } catch (e, stacktrace) {
+      log("Error in addMessage: $e");
+      log("Stacktrace: $stacktrace");
+    }
+  }
 
-//     if (!isMessageAlreadyAdded) {
-//       updatedMessages.add(message); // Add the new message
-//       await box.put(
-//           chatUsersId, updatedMessages); // Save the updated list to the box
-//     } else {
-//       log("Message with ID '${message.id}' already exists, skipping addition.");
-//     }
-//   }
+  /// Loads chat messages for a specific chat user.
+  static Future<List<ChatModel>> getMessages(String chatRoomId) async {
+    try {
+      // Open the Hive box for storing chat messages
+      final box = await HiveBoxManager.getChatBox();
 
-//   // Load chat messages for a specific chat user
-//   static Future<List<ChatModel>> loadMessages(String chatUsersId) async {
-//     final box = await Hive.openBox<List>('chatBox');
-//     final messages = box.get(chatUsersId, defaultValue: []);
-//     return messages?.map((e) => e as ChatModel).toList() ?? [];
-//   }
+      // Retrieve messages for the given chatRoomId
+      final messages = box.get(chatRoomId, defaultValue: <dynamic>[]) ?? [];
 
-//   static Future<void> deleteMessage(
-//       String chatUsersId, String messageId) async {
-//     final box = await Hive.openBox<List>(chatBoxName);
+      // Filter to ensure all items are valid ChatModel objects
+      return messages.whereType<ChatModel>().toList();
+    } catch (e, stacktrace) {
+      // Log the error and stacktrace
+      log("Error retrieving messages for chatRoomId '$chatRoomId': $e");
+      log("Stacktrace: $stacktrace");
 
-//     // Retrieve the existing messages for the chat
-//     final existingMessages = box.get(chatUsersId, defaultValue: []);
+      // Return an empty list if an error occurs
+      return [];
+    }
+  }
 
-//     if (existingMessages != null && existingMessages.isNotEmpty) {
-//       // Convert to a list of ChatModel objects and filter out the message to delete
-//       final updatedMessages = List<ChatModel>.from(existingMessages)
-//           .where((message) => message.id != messageId)
-//           .toList();
+  /// Deletes a specific message by ID for a given chat user.
+  static Future<void> deleteMessage(String chatRoomId, String messageId) async {
+    try {
+      final box = await HiveBoxManager.getChatBox();
 
-//       // Save the updated list back to the box
-//       await box.put(chatUsersId, updatedMessages);
-//       log("Message with ID '$messageId' deleted successfully.");
-//     } else {
-//       log("No messages found for chat room ID '$chatUsersId'.");
-//     }
-//   }
-// }
+      // Retrieve the existing messages for the chat
+      final existingMessages = box.get(chatRoomId, defaultValue: <dynamic>[]);
+
+      if (existingMessages != null && existingMessages.isNotEmpty) {
+        // Convert to a list of ChatModel objects and filter out the message to delete
+        final updatedMessages = List<ChatModel>.from(
+          existingMessages.map((e) => e as ChatModel),
+        ).where((message) => message.id != messageId).toList();
+
+        // Save the updated list back to the box
+        await box.put(chatRoomId, updatedMessages);
+        log("Message with ID '$messageId' deleted successfully.");
+      } else {
+        log("No messages found for chatRoomId '$chatRoomId'.");
+      }
+    } catch (e, stacktrace) {
+      log("Error in deleteMessage: $e");
+      log("Stacktrace: $stacktrace");
+    }
+  }
+
+  /// Clears all messages for a specific chat user.
+  static Future<void> clearMessages(String chatRoomId) async {
+    try {
+      final box = await HiveBoxManager.getChatBox();
+      await box.delete(chatRoomId);
+      log("All messages cleared for chatRoomId '$chatRoomId'.");
+    } catch (e, stacktrace) {
+      log("Error in clearMessages for chatRoomId '$chatRoomId': $e");
+      log("Stacktrace: $stacktrace");
+    }
+  }
+}

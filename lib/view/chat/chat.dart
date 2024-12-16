@@ -60,7 +60,7 @@ class ChatPage extends StatelessWidget {
                       // controller: ctr.scrollController,
                       itemCount: ctr.sampleChats.length,
                       itemBuilder: (context, index) {
-                        var reversedChat = ctr.sampleChats.reversed.toList();
+                        var reversedChat = ctr.sampleChats.toList();
 
                         final chat = reversedChat[index];
                         chat.isSentByMe = chat.senderId == LocalService.userId;

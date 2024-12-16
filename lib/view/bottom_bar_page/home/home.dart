@@ -87,7 +87,7 @@ class CustomUserTile extends StatelessWidget {
           getChatStatusWhiteIcon('seen', context),
           kWidth((3.w)),
           Text(
-            chatRoomDetailModel.lastMessage ?? "",
+            chatRoomDetailModel.lastMessage?.message ?? "",
             style: Theme.of(context).primaryTextTheme.labelSmall,
           ),
         ],

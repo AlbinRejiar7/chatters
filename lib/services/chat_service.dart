@@ -345,21 +345,7 @@ class ChatRoomService {
       await FirebaseFirestore.instance
           .collection('chatRooms')
           .doc(chatRoomId)
-          .update({
-        'lastMessage': message.message,
-        'lastMessageTime': message.timestamp,
-        // 'lastMessageSenderId': message.senderId,
-        'lastMessageType': message.messageType?.toString().split('.').last,
-      }).then(
-        (value) async {
-          await FirestoreLogger.logFieldWrite(
-              name: "metadataforquickaccess",
-              mainCollection: 'chatRooms',
-              mainDocument: chatRoomId,
-              fields: ['lastMessage', 'lastMessageTime', 'lastMessageType']);
-          return true;
-        },
-      );
+          .set({"lastMessage": message.toJson()}, SetOptions(merge: true));
       await incrementUnreadMessageCount(message.receiverId ?? "");
       print('Message sent successfully!');
       return true;

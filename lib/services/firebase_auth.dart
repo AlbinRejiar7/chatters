@@ -67,11 +67,14 @@ class FirebaseAuthServices {
         var formatedNumberId = "+${ctr.selectedCountry.value}${number}";
         log("FORMATED NUMBER as id $formatedNumberId");
         var userDetails = await getUserDetailsBydocId(formatedNumberId);
+
         LocalService.setProfileData(
+    
           kimageUrl: userDetails?.profileImageUrl ?? "",
           kuserName: userDetails?.username ?? "",
           kphNumber: userDetails?.phoneNumber ?? "",
         );
+
         LocalService.setLoginStatus(true);
         Get.put(ContactsController());
         Get.offAll(() => const BottomBarPage(),

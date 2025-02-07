@@ -83,6 +83,42 @@ class ChatStorageService {
     }
   }
 
+  /// Updates a specific message in the chat storage for a specific user.
+  static Future<void> updateMessage(
+      String chatRoomId, ChatModel updatedMessage) async {
+    try {
+      final box = await HiveBoxManager.getChatBox();
+
+      // Retrieve the existing messages for the chat
+      final existingMessages = box.get(chatRoomId, defaultValue: <dynamic>[]);
+
+      if (existingMessages != null && existingMessages.isNotEmpty) {
+        // Convert to a list of ChatModel objects
+        final updatedMessages = List<ChatModel>.from(
+          existingMessages.map((e) => e as ChatModel),
+        );
+
+        // Find the index of the message to update
+        final messageIndex = updatedMessages
+            .indexWhere((message) => message.id == updatedMessage.id);
+
+        if (messageIndex != -1) {
+          // Update the message at the found index
+          updatedMessages[messageIndex] = updatedMessage;
+          await box.put(chatRoomId, updatedMessages); // Save the updated list
+          log("Message with ID '${updatedMessage.id}' updated successfully.");
+        } else {
+          log("Message with ID '${updatedMessage.id}' not found for chatRoomId '$chatRoomId'.");
+        }
+      } else {
+        log("No messages found for chatRoomId '$chatRoomId'.");
+      }
+    } catch (e, stacktrace) {
+      log("Error in updateMessage: $e");
+      log("Stacktrace: $stacktrace");
+    }
+  }
+
   /// Clears all messages for a specific chat user.
   static Future<void> clearMessages(String chatRoomId) async {
     try {

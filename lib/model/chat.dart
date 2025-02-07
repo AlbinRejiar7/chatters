@@ -151,7 +151,7 @@ class ChatModel {
       'reactions': reactions,
       'mentions': mentions,
       'replyToMessageId': replyToMessageId,
-      'createdAt': FieldValue.serverTimestamp(),
+      'createdAt': Timestamp.now(),
       'isSend': isSend,
     };
   }

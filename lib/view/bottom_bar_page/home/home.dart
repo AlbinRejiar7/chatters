@@ -13,7 +13,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var ctr = Get.find<HomeController>();
+    var ctr = Get.put(HomeController());
     return Scaffold(
       extendBody: true,
       extendBodyBehindAppBar: true,
@@ -63,6 +63,7 @@ class CustomUserTile extends StatelessWidget {
       onTap: () {
         Get.to(
             () => ChatPage(
+                  lastMessages: chatRoomDetailModel.lastMessages ?? [],
                   unreadCount: chatRoomDetailModel
                           .unReadMessagesCountMap?["${LocalService.userId}"] ??
                       0,

@@ -2,15 +2,19 @@ import 'dart:ui';
 
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/constants/light_font_style.dart';
+import 'package:chatter/controller/chat.dart';
+import 'package:chatter/services/local_chat.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_iconly/flutter_iconly.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
 class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String name;
-  const ChatAppBar({super.key, required this.name});
+  final String chatRoomId;
+  const ChatAppBar({super.key, required this.name, required this.chatRoomId});
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +92,14 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                   'Search',
                   style: LightFontStyle.textMedium,
                 )),
+                PopupMenuItem(
+                    onTap: () async {
+                      await ChatStorageService.clearMessages(chatRoomId);
+                    },
+                    child: Text(
+                      'Clear chat',
+                      style: LightFontStyle.textMedium,
+                    )),
                 PopupMenuItem(
                     child: Text(
                   'Mute notification',

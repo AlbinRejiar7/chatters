@@ -24,4 +24,26 @@ class FirestoreLogger {
       },
     );
   }
+
+  static Future<void> logFieldReads({
+    required String name,
+    required String mainCollection,
+    required String mainDocument,
+    String? subCollection,
+    String? subDocument,
+    List<String>? fields, // Accept multiple fields
+  }) async {
+    await _analytics.logEvent(
+      name: "${name}_READS",
+      parameters: {
+        'main_collection': mainCollection,
+        'main_document': mainDocument,
+        if (subCollection != null) 'sub_collection': subCollection,
+        if (subDocument != null) 'sub_document': subDocument,
+        if (fields != null)
+          'fields':
+              fields.join(','), // Convert list to a comma-separated string
+      },
+    );
+  }
 }

@@ -53,6 +53,11 @@ dependencies:
   hive: ^2.2.3
   hive_flutter:
   firebase_analytics: ^11.3.6
+  firebase_messaging:
+  flutter_local_notifications: ^18.0.1
+  googleapis_auth: ^1.6.0
+  http: ^1.2.2
+
 
 dev_dependencies:
   hive_generator:

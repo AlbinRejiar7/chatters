@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 class ChatRoomService {
+  static FirebaseFirestore get firestore => FirebaseFirestore.instance;
   static Future<String> createChatRoom({
     required String receiverId,
     required List<String> participants,
@@ -283,34 +284,45 @@ class ChatRoomService {
       print('Failed to reset unread message count: $e');
     }
   }
+static Future<void> setReadToTrue() async {
+  try {
+    // Reference to the messages collection in the chat room
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection('chatRooms')
+        .doc(getConversationID(LocalService.userId ?? ""))
+        .collection("messages")
+        .where("isRead", isEqualTo: null)
+        .where("senderId", isNotEqualTo: LocalService.userId ?? "")
+        .get();
 
-  static Future<void> setReadToTrue(
-      {required String senderId, required String messageId}) async {
-    log(senderId + "Receiver ID");
-    try {
-      // Reference the specific message document in Firestore
-      final messageDoc = FirebaseFirestore.instance
-          .collection('chatRooms')
-          .doc(getConversationID(senderId))
-          .collection("messages")
-          .doc(messageId);
+    // Firestore batch to update multiple documents
+    WriteBatch batch = FirebaseFirestore.instance.batch();
 
-      // Update the `isRead` field to true
-      await messageDoc.update({"isRead": true}).then(
-        (value) async {
-          await FirestoreLogger.logFieldWrite(
-              name: "setReadToTrue",
-              mainCollection: 'chatRooms',
-              mainDocument: getConversationID(senderId),
-              subCollection: "messages",
-              subDocument: messageId,
-              fields: ['isRead']);
-        },
-      );
-    } catch (e) {
-      log('Failed to mark message as read: $e');
+    for (var doc in querySnapshot.docs) {
+      batch.update(doc.reference, {"isRead": true});
     }
+
+    // Commit the batch update
+    await batch.commit();
+
+    log("All unread messages marked as read!");
+
+    // Optional: Log updates for each document
+    for (var doc in querySnapshot.docs) {
+      await FirestoreLogger.logFieldWrite(
+        name: "setReadToTrue",
+        mainCollection: 'chatRooms',
+        mainDocument: getConversationID(LocalService.userId ?? ""),
+        subCollection: "messages",
+        subDocument: doc.id,
+        fields: ['isRead'],
+      );
+    }
+  } catch (e) {
+    log('Failed to mark messages as read: $e');
   }
+}
+
 
   static Future<bool> sendMessage({
     required String chatRoomId,
@@ -346,7 +358,13 @@ class ChatRoomService {
           .collection('chatRooms')
           .doc(chatRoomId)
           .set({"lastMessage": message.toJson()}, SetOptions(merge: true));
-      await incrementUnreadMessageCount(message.receiverId ?? "");
+
+       
+
+      // await PushNotificationService.sendNotification(
+      //     topicId: LocalService.deviceToken ?? "",
+      //     body: "body",
+      //     title: "title");
       print('Message sent successfully!');
       return true;
     } catch (e) {
@@ -386,6 +404,44 @@ class ChatRoomService {
       // Handle errors
       log("Error fetching latest message: $e");
       return null;
+    }
+  }
+static Future<bool> isUserActiveInChat(String otherUserId) async {
+  try {
+    // Reference to the other user's document
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(otherUserId)
+        .get();
+
+    if (userDoc.exists) {
+      // Retrieve the activeChatId field
+      String? activeChatId = userDoc.get('activeChatId');
+
+      // Check if the activeChatId matches the current user's ID
+      return activeChatId == LocalService.userId;
+    }
+  } catch (e) {
+    // Log any errors
+    debugPrint("Error checking activeChatId: $e");
+  }
+  return false;
+}
+
+  static Future<void> setActiveChatId(String otherUserId) async {
+    try {
+      // Reference to the user's document
+      DocumentReference userDoc = FirebaseFirestore.instance
+          .collection('users')
+          .doc(LocalService.userId);
+
+      // Update the activeChatId field
+      await userDoc.update({'activeChatId': otherUserId});
+
+      debugPrint("Active chat ID updated successfully!");
+    } catch (e) {
+      // Log any errors
+      debugPrint("Error setting activeChatId: $e");
     }
   }
 }

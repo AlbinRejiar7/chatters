@@ -10,7 +10,8 @@ class ChatRoomDetailModel {
   DateTime? createdAt;
   DateTime? updatedAt;
   List<String>? participants;
-  ChatModel? lastMessage; // Integrated ChatModel
+  List<ChatModel>? lastMessages; // Added List of ChatModel for lastMessages
+  ChatModel? lastMessage; // Integrated ChatModel for the latest message
   Map<String, int>? unReadMessagesCountMap;
   String? lastMessageType;
   String? receiverId;
@@ -34,6 +35,7 @@ class ChatRoomDetailModel {
     this.createdAt,
     this.updatedAt,
     this.participants,
+    this.lastMessages,
     this.lastMessage,
     this.unReadMessagesCountMap,
     this.lastMessageType,
@@ -61,6 +63,10 @@ class ChatRoomDetailModel {
           : null,
       participants: map['participants'] != null
           ? List<String>.from(map['participants'] as List)
+          : [],
+      lastMessages: map['lastMessages'] != null
+          ? List<ChatModel>.from((map['lastMessages'] as List)
+              .map((e) => ChatModel.fromJson(e as Map<String, dynamic>)))
           : [],
       lastMessage: map['lastMessage'] != null
           ? ChatModel.fromJson(map['lastMessage'] as Map<String, dynamic>)
@@ -93,7 +99,10 @@ class ChatRoomDetailModel {
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
       'participants': participants ?? [],
-      'lastMessage': lastMessage?.toJson(), // Convert ChatModel to JSON
+      'lastMessages': lastMessages != null
+          ? lastMessages!.map((message) => message.toJson()).toList()
+          : [],
+      'lastMessage': lastMessage?.toJson(),
       'unReadMessagesCount': unReadMessagesCountMap,
       'lastMessageType': lastMessageType,
       'receiverId': receiverId,
@@ -116,6 +125,9 @@ class ChatRoomDetailModel {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
       'participants': participants ?? [],
+      'lastMessages': lastMessages != null
+          ? lastMessages!.map((message) => message.toJson()).toList()
+          : [],
       'lastMessage': lastMessage?.toJson() ?? {},
       'unReadMessagesCount': unReadMessagesCountMap ?? {},
       'lastMessageType': lastMessageType ?? 'text',

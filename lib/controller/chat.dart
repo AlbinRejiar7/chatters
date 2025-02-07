@@ -17,10 +17,12 @@ class ChatPageController extends GetxController {
   final String chatRoomId;
   final String receiverId;
   final int unReadCount;
+  final List<ChatModel> lastMesages;
   final GlobalKey<AnimatedListState> listKey = GlobalKey<AnimatedListState>();
   var messageController = TextEditingController();
   var currentIndex = 0.obs;
   final ScrollController scrollController = ScrollController();
+  var activeChatId = "".obs;
 
   void listenToLastMessageFromBothUsers(String chatRoomId) {
     FirebaseFireStoreServices.firestore
@@ -132,7 +134,7 @@ class ChatPageController extends GetxController {
 
   var sampleChats = <ChatModel>[].obs;
 
-  ChatPageController(this.receiverId, this.unReadCount,
+  ChatPageController(this.receiverId, this.unReadCount, this.lastMesages,
       {required this.chatRoomId});
   void scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -151,6 +153,7 @@ class ChatPageController extends GetxController {
     log("sendMessage tapped");
     if (messageController.text.trim().isEmpty) return;
     if (_debounce?.isActive ?? false) _debounce?.cancel();
+
     var message = ChatModel(
       id: const Uuid().v4(),
       senderId: LocalService.userId,
@@ -158,7 +161,7 @@ class ChatPageController extends GetxController {
       message: messageController.text.trim(),
       timestamp: DateTime.now(),
       isSentByMe: true,
-      isRead: null,
+      isRead: activeChatId.value == LocalService.userId ? true : null,
       isSend: false,
       mediaUrl: "",
       messageType: MessageType.text,
@@ -190,6 +193,12 @@ class ChatPageController extends GetxController {
             .then(
           (value) async {
             if (value) {
+              if ((activeChatId.value != LocalService.userId)) {
+                log("Value added to the list!");
+                addToLastMsgList(chatRoomId, message);
+                await ChatRoomService.incrementUnreadMessageCount(
+                    message.receiverId ?? "");
+              }
               await ChatStorageService.addMessage(chatRoomId, message);
 
               log("${value} new message after sending");
@@ -198,6 +207,53 @@ class ChatPageController extends GetxController {
           },
         );
       }
+    });
+  }
+
+  Future<void> getLastMsgListAndAddtoOriginalList(String chatRoomId) async {
+    try {
+      DocumentSnapshot chatRoomDoc = await FirebaseFirestore.instance
+          .collection('chatRooms')
+          .doc(chatRoomId)
+          .get();
+
+      if (chatRoomDoc.exists) {
+        List<dynamic> messagesJson = chatRoomDoc.get('lastMessages') ?? [];
+        var lastMessagesss =
+            messagesJson.map((json) => ChatModel.fromJson(json)).toList();
+        for (ChatModel message in lastMessagesss) {
+          if (message.senderId != LocalService.userId) {
+            sampleChats.insert(0, message);
+            ChatStorageService.addMessage(chatRoomId, message);
+            sampleChats.refresh();
+            log("Added new Last Messages with ID: ${message.id}");
+          } else {
+            message.isRead = true;
+            int index = sampleChats.indexWhere((m) => m.id == message.id);
+            if (index != -1) {
+              sampleChats[index] = message;
+              sampleChats.refresh();
+            }
+          }
+        }
+
+        clearAllLastMessages();
+      }
+    } catch (e) {
+      debugPrint("Error fetching lastMessages: $e");
+    }
+  }
+
+  void addToLastMsgList(String chatRoomId, ChatModel message) {
+    FirebaseFirestore.instance.collection('chatRooms').doc(chatRoomId).set(
+      {
+        'lastMessages': FieldValue.arrayUnion([message.toJson()]),
+      },
+      SetOptions(merge: true), // Ensure other fields are not overwritten
+    ).then((_) {
+      log("Value added to the list!");
+    }).catchError((error) {
+      log("Failed to add value: $error");
     });
   }
 
@@ -327,6 +383,125 @@ class ChatPageController extends GetxController {
   //   });
   // }
 
+  void listenToActiveChatId(String userID) {
+    try {
+      // Reference to the user's document
+      DocumentReference userDoc =
+          FirebaseFirestore.instance.collection('users').doc(userID);
+
+      // Listen to real-time updates
+      userDoc.snapshots().listen((snapshot) {
+        if (snapshot.exists) {
+          Map<String, dynamic>? data = snapshot.data() as Map<String, dynamic>?;
+          activeChatId.value = data?['activeChatId'] ?? "";
+          log("Active chat ID updated: ${activeChatId.value}");
+        }
+      });
+    } catch (e) {
+      // Log any errors
+      log("Error listening to activeChatId: $e");
+    }
+  }
+
+  Future<void> setReadToTrue() async {
+    try {
+      // Fetch all messages that are not read and not sent by the current user
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('chatRooms')
+          .doc(chatRoomId)
+          .collection("messages")
+          .where("isRead", isEqualTo: null)
+          .where("senderId", isNotEqualTo: LocalService.userId ?? "")
+          .get();
+
+      // Batch to update Firestore
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      // Loop through messages and update the `isRead` field
+      for (var doc in querySnapshot.docs) {
+        // Update Firestore document
+        batch.update(doc.reference, {"isRead": true});
+
+        // Construct the updated message object
+        final updatedMessage = doc.data();
+        updatedMessage['isRead'] = true;
+
+        // Update the message in the `sampleChats` list
+        int index = sampleChats.indexWhere((chat) => chat.id == doc.id);
+        if (index != -1) {
+          sampleChats[index] = ChatModel.fromJson(updatedMessage);
+          log("Message updated in the list: ${updatedMessage['message']}");
+
+          // Update the message in local storage
+          await ChatStorageService.updateMessage(
+            chatRoomId,
+            ChatModel.fromJson(updatedMessage),
+          );
+          log("Message updated in local storage: ${updatedMessage['message']}");
+        }
+      }
+
+      // Commit the batch updates
+      await batch.commit();
+
+      // Optional: Notify listeners if using a state management solution like GetX
+      // sampleChats.refresh();
+
+      log("All unread messages marked as read and updated in the list and local storage!");
+    } catch (e) {
+      log('Failed to mark messages as read, update the list, or update local storage: $e');
+    }
+  }
+
+  void syncLastMessagesWithAllChats() {
+    // Log the initial sizes for debugging
+    log("Initial size of allChats: ${sampleChats.length}");
+    log("Size of listOfLastMessages: ${lastMesages.length}");
+
+    // Convert allChats to a Set of message IDs for efficient lookups
+    final allChatIds = sampleChats.map((message) => message.id).toSet();
+
+    // Loop through listOfLastMessages
+    for (ChatModel message in lastMesages) {
+      if (!allChatIds.contains(message.id)) {
+        // Add the new message to allChats
+        sampleChats.insert(0, message);
+        ChatStorageService.addMessage(chatRoomId, message);
+        log("Added new message with ID: ${message.id}");
+      }
+    }
+
+    log("Final size of allChats: ${sampleChats.length}");
+  }
+
+  Future<void> deleteLastMessage(String messageId, String chatRoomId) async {
+    try {
+      DocumentReference chatRoomRef =
+          FirebaseFirestore.instance.collection('chatRooms').doc(chatRoomId);
+
+      await chatRoomRef.update({
+        'lastMessages': FieldValue.arrayRemove([
+          {'id': messageId} // Assuming each message has an 'id' field
+        ])
+      });
+      print('Message deleted successfully');
+    } catch (e) {
+      print('Error deleting message: $e');
+    }
+  }
+
+  Future<void> clearAllLastMessages() async {
+    try {
+      ChatRoomService.firestore.collection('chatRooms').doc(chatRoomId).update({
+        'lastMessages': [],
+      });
+
+      log("Successfully cleared lastMessages for all chat rooms.");
+    } catch (e) {
+      log("Failed to clear lastMessages: $e");
+    }
+  }
+
   @override
   void onInit() async {
     super.onInit();
@@ -337,9 +512,22 @@ class ChatPageController extends GetxController {
     // listenToMessages(chatRoomId);
     // listenToNewMessages(chatRoomId);
     // listenToLastMessageFromOtherUser(chatRoomId, LocalService.userId ?? "");
-    listenToLastMessageFromBothUsers(chatRoomId);
+
     ChatRoomService.resetUnreadMessageCount(receiverId, unReadCount);
+    listenToLastMessageFromBothUsers(chatRoomId);
+    ChatRoomService.setActiveChatId(receiverId);
+    listenToActiveChatId(receiverId);
+
     var messages = await ChatStorageService.getMessages(chatRoomId);
     sampleChats(messages);
+
+// Call the function only if the receiver is not the current user
+    ever(activeChatId, (value) async {
+      log("${activeChatId} ------------------------------- activeChatId changed id");
+      if (activeChatId.value == LocalService.userId) {
+        await getLastMsgListAndAddtoOriginalList(chatRoomId);
+      }
+    });
+    // syncLastMessagesWithAllChats();
   }
 }

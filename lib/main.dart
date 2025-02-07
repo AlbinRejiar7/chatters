@@ -1,6 +1,7 @@
 import 'package:chatter/controller/contacts.dart';
 import 'package:chatter/controller/home.dart';
 import 'package:chatter/model/chat.dart';
+import 'package:chatter/services/chat_service.dart';
 import 'package:chatter/services/local_service.dart';
 import 'package:chatter/theme/notification_bar_theme.dart';
 import 'package:chatter/theme/styles.dart';
@@ -23,6 +24,7 @@ void main() async {
   Hive.registerAdapter(ChatModelAdapter());
   Hive.registerAdapter(MessageTypeAdapter());
   LocalService.onInit();
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -58,21 +60,51 @@ class InitializationScreen extends StatefulWidget {
   _InitializationScreenState createState() => _InitializationScreenState();
 }
 
-class _InitializationScreenState extends State<InitializationScreen> {
+class _InitializationScreenState extends State<InitializationScreen>
+    with WidgetsBindingObserver {
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _initializeApp();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    switch (state) {
+      case AppLifecycleState.resumed:
+        print("App is in foreground");
+        break;
+      case AppLifecycleState.inactive:
+        ChatRoomService.setActiveChatId('');
+        print("App is inactive");
+        break;
+      case AppLifecycleState.paused:
+        print("App is in background");
+        break;
+      case AppLifecycleState.detached:
+        print("App is detached");
+        break;
+      case AppLifecycleState.hidden:
+        print("App is hidden");
+    }
   }
 
   Future<void> _initializeApp() async {
-    // Fetch and process contacts
-    var contactsController = Get.put(ContactsController());
+ 
 
     // Initialize HomeController
-    Get.put(HomeController());
+ 
 
     // Once initialization is done, navigate to the main screen
     setState(() {

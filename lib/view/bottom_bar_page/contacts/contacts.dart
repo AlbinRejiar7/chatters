@@ -11,7 +11,7 @@ class ContactsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var ctr = Get.find<ContactsController>();
+    var ctr = Get.put(ContactsController());
     return Scaffold(body: Obx(() {
       return ctr.isLoading.value
           ? const Center(
@@ -94,6 +94,7 @@ class ContactsPage extends StatelessWidget {
                                         // );
                                         Get.to(
                                           () => ChatPage(
+                                            lastMessages: [],
                                             unreadCount: 0,
                                             receiverId: contact.id,
                                             name: contact.username,

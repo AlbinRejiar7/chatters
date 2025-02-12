@@ -58,7 +58,7 @@ class PushNotificationService {
 
       var message = {
         'message': {
-          'token': topicId,
+          'topic': topicId,
           'notification': {
             'title': title,
             'body': body,
@@ -88,12 +88,10 @@ class PushNotificationService {
   }
 
   static subscribeToTopic(String topic) async {
-   
     log(topic + "Subcribed to this topic");
     // await NotificationPermissionHandler.requestNotificationPermission();
     await _firebaseMessaging.subscribeToTopic(topic);
   }
-
 
   static unsubscribeFromTopic(String topic) async {
     await _firebaseMessaging.unsubscribeFromTopic(topic);

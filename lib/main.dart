@@ -1,8 +1,7 @@
-import 'package:chatter/controller/contacts.dart';
-import 'package:chatter/controller/home.dart';
 import 'package:chatter/model/chat.dart';
-import 'package:chatter/services/chat_service.dart';
+import 'package:chatter/services/local_notification.dart';
 import 'package:chatter/services/local_service.dart';
+import 'package:chatter/services/push_notification.dart';
 import 'package:chatter/theme/notification_bar_theme.dart';
 import 'package:chatter/theme/styles.dart';
 import 'package:chatter/view/auth/send_otp.dart';
@@ -18,16 +17,20 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   await ScreenUtil.ensureScreenSize();
   await GetStorage.init();
   await Hive.initFlutter();
   Hive.registerAdapter(ChatModelAdapter());
   Hive.registerAdapter(MessageTypeAdapter());
   LocalService.onInit();
+  await LocalNotificationService.reSubscribe();
+  await LocalNotificationService.initLocalNotificationService();
+  await PushNotificationService.handleForegroundNotification();
+  await PushNotificationService.handleBackgroundNotification();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
   // var ctr = Get.put(ContactsController());
   // await ctr.fetchContacts();
   // await ctr.fetchMatchingContacts();
@@ -86,11 +89,12 @@ class _InitializationScreenState extends State<InitializationScreen>
         print("App is in foreground");
         break;
       case AppLifecycleState.inactive:
-        ChatRoomService.setActiveChatId('');
         print("App is inactive");
+
         break;
       case AppLifecycleState.paused:
         print("App is in background");
+
         break;
       case AppLifecycleState.detached:
         print("App is detached");
@@ -101,10 +105,7 @@ class _InitializationScreenState extends State<InitializationScreen>
   }
 
   Future<void> _initializeApp() async {
- 
-
     // Initialize HomeController
- 
 
     // Once initialization is done, navigate to the main screen
     setState(() {

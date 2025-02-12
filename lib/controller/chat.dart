@@ -22,68 +22,55 @@ class ChatPageController extends GetxController {
   var messageController = TextEditingController();
   var currentIndex = 0.obs;
   final ScrollController scrollController = ScrollController();
+  var unseenMessages = <ChatModel>[].obs;
   var activeChatId = "".obs;
 
-  void listenToLastMessageFromBothUsers(String chatRoomId) {
-    FirebaseFireStoreServices.firestore
-        .collection('chatRooms')
-        .doc(chatRoomId)
-        .collection('messages')
-        .orderBy('createdAt', descending: true) // Order messages by timestamp
-        .limit(1) // Fetch only the latest message
-        .snapshots()
-        .listen((QuerySnapshot snapshot) async {
-      if (snapshot.docs.isNotEmpty) {
-        final doc = snapshot.docs.first;
-        final data = doc.data() as Map<String, dynamic>?;
+  // Future<void> loadUnseenMessages(
+  //     String chatRoomId, String currentUserId) async {
+  //   // Get the last seen timestamp for the user
+  //   DocumentSnapshot chatRoomDoc = await FirebaseFireStoreServices.firestore
+  //       .collection('users')
+  //       .doc(LocalService.userId)
+  //       .get();
 
-        if (data == null || !data.containsKey('createdAt')) {
-          log("Invalid message data received: $data");
-          return;
-        }
+  //   Map<String, dynamic>? data = chatRoomDoc.data() as Map<String, dynamic>?;
 
-        final newMessage = ChatModel.fromJson(data);
-        log("${newMessage.message} last message");
-        // Check if message ID already exists in the list
-        final isMessageAlreadyAdded = sampleChats.any(
-          (chat) => chat.id == newMessage.id,
-        );
+  //   Timestamp? lastSeenTimestamp =
+  //       data?['lastSeen']?[currentUserId] ?? Timestamp(0, 0);
 
-        if (!isMessageAlreadyAdded) {
-          // Add to the list and maintain order by createdAt
-          sampleChats.insert(0, newMessage);
-          await ChatStorageService.addMessage(chatRoomId, newMessage);
-          // Notify listeners of the updated list (uncomment if using GetX or similar)
-          // sampleChats.refresh();
-          log("Latest message added: ${newMessage.message}");
-        } else {
-          log("Message already exists in the list, skipping addition.");
-        }
-      } else {
-        log("No messages found in this chat room.");
-      }
-    });
-  }
+  //   QuerySnapshot snapshot = await FirebaseFireStoreServices.firestore
+  //       .collection('chatRooms')
+  //       .doc(chatRoomId)
+  //       .collection('messages')
+  //       .where('createdAt',
+  //           isGreaterThan: lastSeenTimestamp) // Fetch only new messages
+  //       .orderBy('createdAt', descending: false) // Keep the correct order
+  //       .get();
 
-  // void listenToLastMessageFromOtherUser(
-  //     String chatRoomId, String currentUserId) {
+  //   if (snapshot.docs.isNotEmpty) {
+  //     for (var doc in snapshot.docs) {
+  //       final messageData = doc.data() as Map<String, dynamic>?;
+  //       if (messageData != null) {
+  //         final newMessage = ChatModel.fromJson(messageData);
+  //         unseenMessages.add(newMessage);
+  //       }
+  //     }
+  //     log("Loaded unseen messages: ${unseenMessages.length} ${unseenMessages.value}");
+  //   } else {
+  //     log("No unseen messages to load.");
+  //   }
+  // }
+
+  // void listenToLastMessageFromBothUsers(String chatRoomId) {
   //   FirebaseFireStoreServices.firestore
   //       .collection('chatRooms')
   //       .doc(chatRoomId)
   //       .collection('messages')
-  //       .where('senderId',
-  //           isNotEqualTo: currentUserId) // Filter messages from other users
-  //       .orderBy('senderId') // Required when using 'where' with inequality
-  //       .orderBy('createdAt', descending: true) // Order by timestamp
+  //       .orderBy('createdAt', descending: true) // Order messages by timestamp
   //       .limit(1) // Fetch only the latest message
   //       .snapshots()
   //       .listen((QuerySnapshot snapshot) async {
   //     if (snapshot.docs.isNotEmpty) {
-  //       if (snapshot.docs.isEmpty) {
-  //         log("No messages from other users in this chat room.");
-  //         return;
-  //       }
-
   //       final doc = snapshot.docs.first;
   //       final data = doc.data() as Map<String, dynamic>?;
 
@@ -93,7 +80,7 @@ class ChatPageController extends GetxController {
   //       }
 
   //       final newMessage = ChatModel.fromJson(data);
-
+  //       log("${newMessage.message} last message");
   //       // Check if message ID already exists in the list
   //       final isMessageAlreadyAdded = sampleChats.any(
   //         (chat) => chat.id == newMessage.id,
@@ -103,14 +90,64 @@ class ChatPageController extends GetxController {
   //         // Add to the list and maintain order by createdAt
   //         sampleChats.insert(0, newMessage);
   //         await ChatStorageService.addMessage(chatRoomId, newMessage);
-  //         // sampleChats.refresh(); // Notify listeners of the updated list
-  //         log("Latest message from other user added");
+  //         // Notify listeners of the updated list (uncomment if using GetX or similar)
+  //         // sampleChats.refresh();
+  //         log("Latest message added: ${newMessage.message}");
   //       } else {
-  //         log("Message already exists in the list, skipping addition");
+  //         log("Message already exists in the list, skipping addition.");
   //       }
+  //     } else {
+  //       log("No messages found in this chat room.");
   //     }
   //   });
   // }
+
+  void listenToLastMessageFromOtherUser(
+      String chatRoomId, String currentUserId) {
+    FirebaseFireStoreServices.firestore
+        .collection('chatRooms')
+        .doc(chatRoomId)
+        .collection('messages')
+        .where('senderId',
+            isNotEqualTo: currentUserId) // Filter messages from other users
+        .orderBy('senderId') // Required when using 'where' with inequality
+        .orderBy('createdAt', descending: true) // Order by timestamp
+        .limit(1) // Fetch only the latest message
+        .snapshots()
+        .listen((QuerySnapshot snapshot) async {
+      if (snapshot.docs.isNotEmpty) {
+        if (snapshot.docs.isEmpty) {
+          log("No messages from other users in this chat room.");
+          return;
+        }
+
+        final doc = snapshot.docs.first;
+        final data = doc.data() as Map<String, dynamic>?;
+
+        if (data == null || !data.containsKey('createdAt')) {
+          log("Invalid message data received: $data");
+          return;
+        }
+
+        final newMessage = ChatModel.fromJson(data);
+
+        // Check if message ID already exists in the list
+        final isMessageAlreadyAdded = sampleChats.any(
+          (chat) => chat.id == newMessage.id,
+        );
+
+        if (!isMessageAlreadyAdded) {
+          // Add to the list and maintain order by createdAt
+          sampleChats.insert(0, newMessage);
+          await ChatStorageService.addMessage(chatRoomId, newMessage);
+          // sampleChats.refresh(); // Notify listeners of the updated list
+          log("Latest message from other user added");
+        } else {
+          log("Message already exists in the list, skipping addition");
+        }
+      }
+    });
+  }
 
   // void listenToMessages(String chatRoomId) {
   //   FirebaseFireStoreServices.firestore
@@ -148,6 +185,29 @@ class ChatPageController extends GetxController {
     });
   }
 
+  void clearChat(String chatRoomId) async {
+    // Create a copy of the list to avoid concurrent modification
+    List<ChatModel> chatsCopy = List.from(sampleChats);
+
+    for (var chat in chatsCopy) {
+      await ChatStorageService.deleteMessage(chatRoomId, chat.id ?? "");
+      deleteMessageFromSampleChats(chat.id ?? "");
+    }
+
+    ScaffoldMessenger.of(Get.overlayContext!).showSnackBar(
+      const SnackBar(content: Text('Chat cleared!!')),
+    );
+
+    Get.back();
+  }
+
+  void deleteMessageFromSampleChats(String id) {
+    sampleChats.removeWhere(
+      (element) => element.id == id,
+    );
+    sampleChats.refresh();
+  }
+
   void sendMessage() async {
     var isEmpty = sampleChats.isEmpty;
     log("sendMessage tapped");
@@ -178,13 +238,20 @@ class ChatPageController extends GetxController {
       // );
 
       // message.mediaUrl = mediaUrl;
-      if (isEmpty) {
+      if (true) {
         log("Empty");
         await ChatRoomService.createChatRoomWithFirstMessage(
           message: message,
           receiverId: receiverId,
           participants: [LocalService.userId ?? "", receiverId],
           isGroup: false,
+        ).then(
+          (value) async {
+            await ChatStorageService.addMessage(chatRoomId, message);
+
+            log(" new message after sending");
+            update();
+          },
         );
       } else {
         log("Not Empty");
@@ -193,12 +260,19 @@ class ChatPageController extends GetxController {
             .then(
           (value) async {
             if (value) {
-              if ((activeChatId.value != LocalService.userId)) {
-                log("Value added to the list!");
-                addToLastMsgList(chatRoomId, message);
-                await ChatRoomService.incrementUnreadMessageCount(
-                    message.receiverId ?? "");
+              if (activeChatId.value != LocalService.userId) {
+                // await PushNotificationService.sendNotification(
+                //   topicId: receiverId?.replaceAll("+", "_") ?? "",
+                //   body: message.message ?? "",
+                //   title: message.senderName ?? "",
+                // );
               }
+              // if ((activeChatId.value != LocalService.userId)) {
+              //   log("Value added to the list!");
+              //   addToLastMsgList(chatRoomId, message);
+              //   await ChatRoomService.incrementUnreadMessageCount(
+              //       message.receiverId ?? "");
+              // }
               await ChatStorageService.addMessage(chatRoomId, message);
 
               log("${value} new message after sending");
@@ -219,25 +293,32 @@ class ChatPageController extends GetxController {
 
       if (chatRoomDoc.exists) {
         List<dynamic> messagesJson = chatRoomDoc.get('lastMessages') ?? [];
-        var lastMessagesss =
+        var lastMessages =
             messagesJson.map((json) => ChatModel.fromJson(json)).toList();
-        for (ChatModel message in lastMessagesss) {
-          if (message.senderId != LocalService.userId) {
-            sampleChats.insert(0, message);
-            ChatStorageService.addMessage(chatRoomId, message);
-            sampleChats.refresh();
-            log("Added new Last Messages with ID: ${message.id}");
-          } else {
-            message.isRead = true;
-            int index = sampleChats.indexWhere((m) => m.id == message.id);
-            if (index != -1) {
-              sampleChats[index] = message;
-              sampleChats.refresh();
+
+        for (ChatModel message in lastMessages) {
+          bool alreadyExists = sampleChats
+              .any((existingMessage) => existingMessage.id == message.id);
+
+          if (!alreadyExists) {
+            if (message.senderId != LocalService.userId) {
+              sampleChats.insert(0, message);
+              ChatStorageService.addMessage(chatRoomId, message);
+              log("Added new Last Message with ID: ${message.id}");
+            } else {
+              message.isRead = true;
+              int index = sampleChats.indexWhere((m) => m.id == message.id);
+              if (index != -1) {
+                sampleChats[index] = message;
+              }
             }
+            sampleChats.refresh();
           }
         }
 
-        clearAllLastMessages();
+        if (activeChatId.value == LocalService.userId) {
+          clearAllLastMessages();
+        }
       }
     } catch (e) {
       debugPrint("Error fetching lastMessages: $e");
@@ -403,6 +484,102 @@ class ChatPageController extends GetxController {
     }
   }
 
+  Future<void> markMessageAsRead(String chatRoomId, String messageId) async {
+    try {
+      log("🔄 Starting to mark message ID: $messageId as read...");
+
+      // Step 1: Update Firestore
+      log("📝 Updating Firestore for message ID: $messageId...");
+      await FirebaseFireStoreServices.firestore
+          .collection('chatRooms')
+          .doc(chatRoomId)
+          .collection('messages')
+          .doc(messageId)
+          .update({'isRead': true});
+      log("✅ Firestore update successful for message ID: $messageId.");
+
+      // Step 2: Update Local Storage (If applicable)
+      log("📥 Fetching message from local storage for ID: $messageId...");
+      final ChatModel? localMessage =
+          await ChatStorageService.getSingleMessage(chatRoomId, messageId);
+
+      if (localMessage != null) {
+        log("🔄 Updating local storage for message ID: $messageId...");
+        final updatedMessage = localMessage.copyWith(isRead: true);
+        await ChatStorageService.updateMessage(chatRoomId, updatedMessage);
+        log("✅ Local storage updated for message ID: $messageId.");
+      } else {
+        log("⚠️ Message ID: $messageId not found in local storage. Skipping local update.");
+      }
+
+      log("🎉 Successfully marked message ID: $messageId as read.");
+    } catch (e, stackTrace) {
+      log("❌ Error updating message ID: $messageId - $e");
+      log("🔍 StackTrace: $stackTrace");
+    }
+  }
+
+  void listenToUnreadMessages(String chatRoomId, String currentUserId) {
+    log("🔄 Listening for unread messages in chatRoom: $chatRoomId");
+
+    FirebaseFireStoreServices.firestore
+        .collection('chatRooms')
+        .doc(chatRoomId)
+        .collection('messages')
+        .where('isRead', isEqualTo: false) // Get only unread messages
+        .where('senderId', isNotEqualTo: currentUserId) // Messages from others
+        .orderBy('senderId') // Required when using 'where' with inequality
+        .orderBy('createdAt', descending: true) // Latest first
+        .snapshots()
+        .listen((QuerySnapshot snapshot) async {
+      log("📥 Received new snapshot with ${snapshot.docs.length} unread messages");
+
+      if (snapshot.docs.isNotEmpty) {
+        for (var doc in snapshot.docs) {
+          log("🔎 Processing message ID: ${doc.id}");
+
+          final data = doc.data() as Map<String, dynamic>?;
+
+          if (data == null || !data.containsKey('id')) {
+            log("⚠️ Invalid message data received: $data");
+            continue;
+          }
+
+          final message = ChatModel.fromJson(data);
+          log("📨 Parsed message: ${message.toJson()}");
+
+          // Check if the message is already read
+          if (message.isRead == true) {
+            log("✅ Message ID: ${message.id} is already read. Skipping...");
+            continue;
+          }
+
+          log("📝 Marking message ID: ${message.id} as read in Firestore...");
+          await FirebaseFireStoreServices.firestore
+              .collection('chatRooms')
+              .doc(chatRoomId)
+              .collection('messages')
+              .doc(message.id)
+              .update({'isRead': true});
+          log("✅ Message ID: ${message.id} marked as read in Firestore.");
+
+          // Mark message as read in Local Storage
+          final updatedMessage = message.copyWith(isRead: true);
+          log("🖥 Updating local storage for message ID: ${message.id}");
+          await ChatStorageService.updateMessage(chatRoomId, updatedMessage);
+          log("✅ Message ID: ${message.id} updated in local storage.");
+
+          log("🔔 Notifying UI about message read status.");
+        }
+
+        log("🔄 UI refresh triggered after processing unread messages.");
+        // sampleChats.refresh();
+      } else {
+        log("ℹ️ No unread messages found.");
+      }
+    });
+  }
+
   Future<void> setReadToTrue() async {
     try {
       // Fetch all messages that are not read and not sent by the current user
@@ -513,21 +690,22 @@ class ChatPageController extends GetxController {
     // listenToNewMessages(chatRoomId);
     // listenToLastMessageFromOtherUser(chatRoomId, LocalService.userId ?? "");
 
-    ChatRoomService.resetUnreadMessageCount(receiverId, unReadCount);
-    listenToLastMessageFromBothUsers(chatRoomId);
-    ChatRoomService.setActiveChatId(receiverId);
-    listenToActiveChatId(receiverId);
+    // ChatRoomService.resetUnreadMessageCount(receiverId, unReadCount);
+    listenToLastMessageFromOtherUser(chatRoomId, LocalService.userId ?? "");
+    listenToUnreadMessages(chatRoomId, LocalService.userId ?? "");
+    // ChatRoomService.setActiveChatId(receiverId);
+    // listenToActiveChatId(receiverId);
 
     var messages = await ChatStorageService.getMessages(chatRoomId);
     sampleChats(messages);
-
+    // await loadUnseenMessages(chatRoomId, LocalService.userId ?? "");
+    sampleChats.addAll(unseenMessages);
 // Call the function only if the receiver is not the current user
-    ever(activeChatId, (value) async {
-      log("${activeChatId} ------------------------------- activeChatId changed id");
-      if (activeChatId.value == LocalService.userId) {
-        await getLastMsgListAndAddtoOriginalList(chatRoomId);
-      }
-    });
+    // ever(activeChatId, (value) async {
+    //   log("${activeChatId} ------------------------------- activeChatId changed id");
+
+    //   await getLastMsgListAndAddtoOriginalList(chatRoomId);
+    // });
     // syncLastMessagesWithAllChats();
   }
 }

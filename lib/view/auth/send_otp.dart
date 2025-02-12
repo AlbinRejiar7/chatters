@@ -16,7 +16,7 @@ class SendOtpPage extends StatelessWidget {
   const SendOtpPage({super.key});
 
   @override
-  Widget build(BuildContext context) { 
+  Widget build(BuildContext context) {
     Get.put(CountrySelectorController());
     var ctr = Get.put<SendOtpContrller>(SendOtpContrller());
     return Scaffold(
@@ -69,7 +69,7 @@ class SendOtpPage extends StatelessWidget {
                   )
                 ],
               ),
-              Spacer(),
+              const Spacer(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [

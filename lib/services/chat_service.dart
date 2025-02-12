@@ -428,20 +428,20 @@ static Future<bool> isUserActiveInChat(String otherUserId) async {
   return false;
 }
 
-  static Future<void> setActiveChatId(String otherUserId) async {
-    try {
-      // Reference to the user's document
-      DocumentReference userDoc = FirebaseFirestore.instance
-          .collection('users')
-          .doc(LocalService.userId);
+  // static Future<void> setActiveChatId(String otherUserId) async {
+  //   try {
+  //     // Reference to the user's document
+  //     DocumentReference userDoc = FirebaseFirestore.instance
+  //         .collection('users')
+  //         .doc(LocalService.userId);
 
-      // Update the activeChatId field
-      await userDoc.update({'activeChatId': otherUserId});
+  //     // Update the activeChatId field
+  //     await userDoc.update({'activeChatId': otherUserId});
 
-      debugPrint("Active chat ID updated successfully!");
-    } catch (e) {
-      // Log any errors
-      debugPrint("Error setting activeChatId: $e");
-    }
-  }
+  //     debugPrint("Active chat ID updated successfully!");
+  //   } catch (e) {
+  //     // Log any errors
+  //     debugPrint("Error setting activeChatId: $e");
+  //   }
+  // }
 }

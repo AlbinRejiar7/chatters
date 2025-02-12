@@ -42,12 +42,15 @@ class ChatPage extends StatelessWidget {
       extendBody: true,
       extendBodyBehindAppBar: true,
       appBar: ChatAppBar(
+        onTapClearChat: () {
+          ctr.clearChat(chatRoomId);
+        },
         chatRoomId: chatRoomId,
         name: name,
       ),
       body: PopScope(
         onPopInvokedWithResult: (didPop, result) {
-          ChatRoomService.setActiveChatId('');
+          // ChatRoomService.setActiveChatId('');
         },
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -238,7 +241,12 @@ class TextMessageBubble extends StatelessWidget {
       children: [
         chat.isSentByMe ?? false
             ? buildSenderBubble(context, chat)
-            : Otheruserbubble(chat: chat, previous: previous, next: next),
+            : Otheruserbubble(
+                chat: chat,
+                previous: previous,
+                next: next,
+                chatroomId: chatRoomId,
+              ),
       ],
     );
   }

@@ -2,8 +2,58 @@ import 'dart:developer';
 
 import 'package:chatter/model/chat.dart';
 import 'package:chatter/utils/get_box.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get_storage/get_storage.dart';
 
 class ChatStorageService {
+  static GetStorage get boxStorage => GetStorage();
+
+  /// Save last seen message timestamp for a chat room
+  static Future<void> setLastSeenTimestamp(
+      String chatRoomId, Timestamp timestamp) async {
+    boxStorage.write('lastSeen_$chatRoomId', timestamp.seconds);
+  }
+
+  /// Retrieve the last seen timestamp; default to 0 if not found
+  static Future<Timestamp> getLastSeenTimestamp(String chatRoomId) async {
+    final seconds = boxStorage.read('lastSeen_$chatRoomId') ?? 0;
+    return Timestamp(seconds, 0);
+  }
+
+  /// Retrieves a single message by `messageId` from local storage.
+  static Future<ChatModel?> getSingleMessage(
+      String chatRoomId, String messageId) async {
+    try {
+      log("🔍 Fetching message ID: $messageId for chatRoomId: $chatRoomId");
+
+      // Open the Hive box for chat messages
+      final box = await HiveBoxManager.getChatBox();
+
+      // Retrieve messages from local storage
+      final messages = box.get(chatRoomId, defaultValue: <dynamic>[]) ?? [];
+
+      // Convert stored data to a list of ChatModel objects
+      final chatList = messages.whereType<ChatModel>().toList();
+
+      // Find the message with the given ID
+      final message = chatList.firstWhere(
+        (msg) => msg.id == messageId,
+      );
+
+      if (message != null) {
+        log("✅ Message found: ${message.id}");
+      } else {
+        log("⚠️ Message with ID '$messageId' not found in chatRoomId: $chatRoomId");
+      }
+
+      return message;
+    } catch (e, stacktrace) {
+      log("❌ Error retrieving message ID '$messageId' for chatRoomId '$chatRoomId': $e");
+      log("Stacktrace: $stacktrace");
+      return null;
+    }
+  }
+
   /// Adds a message to the chat storage for a specific user.
   static Future<void> addMessage(String chatRoomId, ChatModel message) async {
     try {
@@ -83,7 +133,6 @@ class ChatStorageService {
     }
   }
 
-  /// Updates a specific message in the chat storage for a specific user.
   static Future<void> updateMessage(
       String chatRoomId, ChatModel updatedMessage) async {
     try {
@@ -107,6 +156,9 @@ class ChatStorageService {
           updatedMessages[messageIndex] = updatedMessage;
           await box.put(chatRoomId, updatedMessages); // Save the updated list
           log("Message with ID '${updatedMessage.id}' updated successfully.");
+
+          // Refresh UI by notifying the list
+          // sampleChats.refresh();
         } else {
           log("Message with ID '${updatedMessage.id}' not found for chatRoomId '$chatRoomId'.");
         }

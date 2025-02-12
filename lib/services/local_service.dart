@@ -1,3 +1,4 @@
+import 'package:chatter/services/push_notification.dart';
 import 'package:get_storage/get_storage.dart';
 
 enum UserboxKey { imageUrl, isLoggedIn, userName, userId, phNumber }
@@ -37,7 +38,7 @@ class LocalService {
   }
 
   // Set profile data in storage and local variables
-  static void setProfileData(
+  static Future setProfileData(
       {required String kimageUrl,
       required String kuserName,
       required String kphNumber}) async {
@@ -45,7 +46,6 @@ class LocalService {
     await box.write(UserboxKey.userName.name, kuserName);
     await box.write(UserboxKey.userId.name, kphNumber);
     await box.write(UserboxKey.phNumber.name, kphNumber);
-
     imageUrl = kimageUrl;
     userName = kuserName;
     userId = kphNumber;
@@ -67,6 +67,7 @@ class LocalService {
     await box.remove(
       UserboxKey.phNumber.name,
     );
+    await PushNotificationService.unsubscribeFromTopic(userId ?? "");
     setLoginStatus(false);
   }
 }

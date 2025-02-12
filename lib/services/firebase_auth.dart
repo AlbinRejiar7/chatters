@@ -5,6 +5,7 @@ import 'package:chatter/controller/country_selector.dart';
 import 'package:chatter/model/user.dart';
 import 'package:chatter/services/firebase_services.dart';
 import 'package:chatter/services/local_service.dart';
+import 'package:chatter/services/push_notification.dart';
 import 'package:chatter/view/auth/verify_otp.dart';
 import 'package:chatter/view/bottom_bar_page/bottom_bar.dart';
 import 'package:chatter/view/reg_details/profile.dart';
@@ -68,8 +69,7 @@ class FirebaseAuthServices {
         log("FORMATED NUMBER as id $formatedNumberId");
         var userDetails = await getUserDetailsBydocId(formatedNumberId);
 
-        LocalService.setProfileData(
-    
+        await LocalService.setProfileData(
           kimageUrl: userDetails?.profileImageUrl ?? "",
           kuserName: userDetails?.username ?? "",
           kphNumber: userDetails?.phoneNumber ?? "",
@@ -79,6 +79,8 @@ class FirebaseAuthServices {
         Get.put(ContactsController());
         Get.offAll(() => const BottomBarPage(),
             transition: Transition.cupertino);
+        await PushNotificationService.subscribeToTopic(
+            LocalService.userId?.replaceAll("+", "_") ?? "");
       }
     } on FirebaseAuthException catch (e) {
       Get.back();

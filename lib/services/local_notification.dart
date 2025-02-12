@@ -9,7 +9,8 @@ class LocalNotificationService {
       FlutterLocalNotificationsPlugin();
   static Future<void> reSubscribe() async {
     if (LocalService.isLoggedIn ?? false) {
-      await PushNotificationService.subscribeToTopic(LocalService.userId ?? "");
+      await PushNotificationService.subscribeToTopic(
+          LocalService.userId?.replaceAll("+", "_") ?? "");
     } else {
       log("User not logged in");
     }

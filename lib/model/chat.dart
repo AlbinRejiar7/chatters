@@ -155,6 +155,52 @@ class ChatModel {
       'isSend': isSend,
     };
   }
+
+  /// **🔹 New copyWith method**
+  /// Allows updating specific fields while keeping others unchanged.
+  ChatModel copyWith({
+    String? id,
+    String? senderId,
+    String? senderName,
+    String? receiverId,
+    String? message,
+    DateTime? timestamp,
+    bool? isSentByMe,
+    bool? isRead,
+    MessageType? messageType,
+    String? mediaUrl,
+    String? thumbnailUrl,
+    String? fileName,
+    String? fileSize,
+    Map<String, double>? location,
+    bool? isDeleted,
+    bool? isSend,
+    List<String>? reactions,
+    List<String>? mentions,
+    String? replyToMessageId,
+  }) {
+    return ChatModel(
+      id: id ?? this.id,
+      senderId: senderId ?? this.senderId,
+      senderName: senderName ?? this.senderName,
+      receiverId: receiverId ?? this.receiverId,
+      message: message ?? this.message,
+      timestamp: timestamp ?? this.timestamp,
+      isSentByMe: isSentByMe ?? this.isSentByMe,
+      isRead: isRead ?? this.isRead,
+      messageType: messageType ?? this.messageType,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      fileName: fileName ?? this.fileName,
+      fileSize: fileSize ?? this.fileSize,
+      location: location ?? this.location,
+      isDeleted: isDeleted ?? this.isDeleted,
+      isSend: isSend ?? this.isSend,
+      reactions: reactions ?? this.reactions,
+      mentions: mentions ?? this.mentions,
+      replyToMessageId: replyToMessageId ?? this.replyToMessageId,
+    );
+  }
 }
 
 @HiveType(typeId: 2)

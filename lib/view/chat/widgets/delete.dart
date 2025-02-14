@@ -1,5 +1,6 @@
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/controller/chat.dart';
+import 'package:chatter/model/chat.dart';
 import 'package:chatter/services/local_chat.dart';
 import 'package:chatter/widgets/button.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +29,9 @@ void showDeleteMessageDialog(
             text: "Delete",
             onPressed: () async {
               // Call the function to delete the message
-              await ChatStorageService.deleteMessage(chatUsersId, messageId);
+
+              await ChatStorageService.updateMessage(
+                  chatUsersId, ChatModel(id: messageId, isDeleted: true));
               ctr.deleteMessageFromSampleChats(messageId);
               // Close the dialog after deletion
               Navigator.of(context).pop();

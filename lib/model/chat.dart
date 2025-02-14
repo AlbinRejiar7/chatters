@@ -3,7 +3,7 @@ import 'package:hive/hive.dart';
 
 part 'chat.g.dart'; // Required for generating Hive adapter code
 
-@HiveType(typeId: 1) // Specify a unique type ID for Hive
+@HiveType(typeId: 1) // Unique type ID for Hive
 class ChatModel {
   @HiveField(0)
   String? id;
@@ -62,6 +62,9 @@ class ChatModel {
   @HiveField(18)
   String? replyToMessageId;
 
+  @HiveField(19)
+  DateTime? createdAt; // New field added
+
   ChatModel({
     this.id,
     this.senderId,
@@ -82,9 +85,10 @@ class ChatModel {
     this.reactions,
     this.mentions,
     this.replyToMessageId,
+    this.createdAt, // Initialize new field
   });
 
-  // Factory to parse JSON with added type safety
+  // Factory to parse JSON
   factory ChatModel.fromJson(Map<String, dynamic> json) {
     return ChatModel(
       id: json['id']?.toString(),
@@ -92,9 +96,8 @@ class ChatModel {
       senderName: json['senderName']?.toString(),
       receiverId: json['receiverId']?.toString(),
       message: json['message']?.toString(),
-      timestamp: json['timestamp'] != null
-          ? DateTime.tryParse(json['timestamp'].toString())
-          : null,
+      timestamp: _parseTimestamp(json['timestamp']),
+      createdAt: _parseTimestamp(json['createdAt']), // Parsing createdAt
       isSentByMe: json['isSentByMe'] as bool?,
       isRead: json['isRead'] as bool?,
       messageType: json['messageType'] != null
@@ -119,6 +122,18 @@ class ChatModel {
     );
   }
 
+  // Helper function to parse timestamps
+  static DateTime? _parseTimestamp(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) {
+      return value.toDate();
+    } else if (value is String) {
+      return DateTime.tryParse(value);
+    } else {
+      return null;
+    }
+  }
+
   // Helper to parse MessageType safely
   static MessageType? _parseMessageType(dynamic type) {
     try {
@@ -139,6 +154,8 @@ class ChatModel {
       'receiverId': receiverId,
       'message': message,
       'timestamp': timestamp?.toIso8601String(),
+      'createdAt': Timestamp.fromDate(
+          createdAt ?? DateTime.now()), // Include createdAt in JSON
       'isSentByMe': isSentByMe,
       'isRead': isRead,
       'messageType': messageType?.toString().split('.').last,
@@ -151,12 +168,11 @@ class ChatModel {
       'reactions': reactions,
       'mentions': mentions,
       'replyToMessageId': replyToMessageId,
-      'createdAt': Timestamp.now(),
       'isSend': isSend,
     };
   }
 
-  /// **🔹 New copyWith method**
+  /// **🔹 copyWith method**
   /// Allows updating specific fields while keeping others unchanged.
   ChatModel copyWith({
     String? id,
@@ -178,6 +194,7 @@ class ChatModel {
     List<String>? reactions,
     List<String>? mentions,
     String? replyToMessageId,
+    DateTime? createdAt, // Add createdAt to copyWith
   }) {
     return ChatModel(
       id: id ?? this.id,
@@ -186,6 +203,7 @@ class ChatModel {
       receiverId: receiverId ?? this.receiverId,
       message: message ?? this.message,
       timestamp: timestamp ?? this.timestamp,
+      createdAt: createdAt ?? this.createdAt, // Assign createdAt
       isSentByMe: isSentByMe ?? this.isSentByMe,
       isRead: isRead ?? this.isRead,
       messageType: messageType ?? this.messageType,

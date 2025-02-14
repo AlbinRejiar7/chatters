@@ -4,6 +4,7 @@ import 'package:chatter/model/chat_room_detail.dart';
 import 'package:chatter/services/local_service.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
 import 'package:chatter/view/chat/chat.dart';
+import 'package:chatter/widgets/profile_pic_viewer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -63,6 +64,7 @@ class CustomUserTile extends StatelessWidget {
       onTap: () {
         Get.to(
             () => ChatPage(
+                  image: chatRoomDetailModel.chatRoomImage ?? "",
                   lastMessages: chatRoomDetailModel.lastMessages ?? [],
                   unreadCount: chatRoomDetailModel
                           .unReadMessagesCountMap?["${LocalService.userId}"] ??
@@ -72,12 +74,10 @@ class CustomUserTile extends StatelessWidget {
                 ),
             transition: Transition.cupertino);
       },
-      leading: CircleAvatar(
-        radius: 23,
-        backgroundImage: NetworkImage(
-          chatRoomDetailModel.chatRoomImage ?? "",
-        ),
-      ),
+      leading: ProfilePictureViewer(
+          imageUrl: chatRoomDetailModel.chatRoomImage ?? "",
+          heroTag: "${chatRoomDetailModel.chatRoomId}"),
+      // leading:
       title: Text(
         chatRoomDetailModel.chatRoomName ?? "",
         style: Theme.of(context).textTheme.bodySmall,

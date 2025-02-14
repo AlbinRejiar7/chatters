@@ -25,8 +25,8 @@ class SendMicButton extends StatelessWidget {
             shape: BoxShape.circle,
             color: AppColors.primaryColor,
           ),
-          width: 40.w, // CircleAvatar's diameter
-          height: 40.h,
+          width: 44.w, // CircleAvatar's diameter
+          height: 44.h,
           child: Center(
             child: isSend
                 ? Icon(

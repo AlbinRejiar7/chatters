@@ -67,7 +67,7 @@ class ChatRoomService {
       await FirebaseFirestore.instance
           .collection('chatRooms')
           .doc(chatRoomId)
-          .set(chatRoomData);
+          .set(chatRoomData, SetOptions(merge: true));
       debugPrint('Step 4: Chat room created successfully with ID: $chatRoomId');
 
       // Step 5: Return Chat Room ID
@@ -77,6 +77,72 @@ class ChatRoomService {
       // Log error
       debugPrint('Error creating chat room: $e');
       return '';
+    }
+  }
+
+  static Future<void> updateLastSeen({FieldValue? timestamp}) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(LocalService.userId)
+          .update({
+        'lastSeen': timestamp, // Sets Firestore timestamp
+      });
+
+      print(
+          "✅ Last seen updated successfully for user: ${LocalService.userId}");
+    } catch (e) {
+      print("❌ Error updating last seen: $e");
+    }
+  }
+
+  static Future<void> addlastMessageListToFireBase(
+      {required ChatModel message,
+      required String chatroomId,
+      required String receiverID}) async {
+    if (LocalService.userId != null) {
+      await firestore.collection('chatRooms').doc(chatroomId).set({
+        'lastMessages_$receiverID': FieldValue.arrayUnion([message.toJson()]),
+      }, SetOptions(merge: true)); // Merge to keep existing data
+    }
+  }
+
+  // static Future<List<String>> getAllLastMessageIds(String chatroomId) async {
+  //   try {
+  //     DocumentSnapshot chatRoomSnapshot = await FirebaseFirestore.instance
+  //         .collection('chatRooms')
+  //         .doc(chatroomId)
+  //         .get();
+
+  //     if (chatRoomSnapshot.exists && chatRoomSnapshot.data() != null) {
+  //       var data = chatRoomSnapshot.data() as Map<String, dynamic>;
+
+  //       // Check if 'LastmessageIds' exists and is a list
+  //       if (data.containsKey('LastmessageIds') &&
+  //           data['LastmessageIds'] is List) {
+  //         return List<String>.from(data['LastmessageIds']);
+  //       }
+  //     }
+
+  //     return []; // Return an empty list if no data is found
+  //   } catch (e) {
+  //     print("Error fetching last message IDs: $e");
+  //     return [];
+  //   }
+  // }
+
+  static Future<void> clearLastMessageIds(String chatRoomId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('chatRooms')
+          .doc(chatRoomId)
+          .update({
+        'lastMessages': [], // Set the array to an empty list
+      });
+
+      print("Successfully cleared LastmessageIds for chatRoomId: $chatRoomId");
+    } catch (e) {
+      print("Error clearing LastmessageIds: $e");
     }
   }
 
@@ -284,45 +350,45 @@ class ChatRoomService {
       print('Failed to reset unread message count: $e');
     }
   }
-static Future<void> setReadToTrue() async {
-  try {
-    // Reference to the messages collection in the chat room
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('chatRooms')
-        .doc(getConversationID(LocalService.userId ?? ""))
-        .collection("messages")
-        .where("isRead", isEqualTo: null)
-        .where("senderId", isNotEqualTo: LocalService.userId ?? "")
-        .get();
 
-    // Firestore batch to update multiple documents
-    WriteBatch batch = FirebaseFirestore.instance.batch();
+  static Future<void> setReadToTrue() async {
+    try {
+      // Reference to the messages collection in the chat room
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('chatRooms')
+          .doc(getConversationID(LocalService.userId ?? ""))
+          .collection("messages")
+          .where("isRead", isEqualTo: null)
+          .where("senderId", isNotEqualTo: LocalService.userId ?? "")
+          .get();
 
-    for (var doc in querySnapshot.docs) {
-      batch.update(doc.reference, {"isRead": true});
+      // Firestore batch to update multiple documents
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      for (var doc in querySnapshot.docs) {
+        batch.update(doc.reference, {"isRead": true});
+      }
+
+      // Commit the batch update
+      await batch.commit();
+
+      log("All unread messages marked as read!");
+
+      // Optional: Log updates for each document
+      for (var doc in querySnapshot.docs) {
+        await FirestoreLogger.logFieldWrite(
+          name: "setReadToTrue",
+          mainCollection: 'chatRooms',
+          mainDocument: getConversationID(LocalService.userId ?? ""),
+          subCollection: "messages",
+          subDocument: doc.id,
+          fields: ['isRead'],
+        );
+      }
+    } catch (e) {
+      log('Failed to mark messages as read: $e');
     }
-
-    // Commit the batch update
-    await batch.commit();
-
-    log("All unread messages marked as read!");
-
-    // Optional: Log updates for each document
-    for (var doc in querySnapshot.docs) {
-      await FirestoreLogger.logFieldWrite(
-        name: "setReadToTrue",
-        mainCollection: 'chatRooms',
-        mainDocument: getConversationID(LocalService.userId ?? ""),
-        subCollection: "messages",
-        subDocument: doc.id,
-        fields: ['isRead'],
-      );
-    }
-  } catch (e) {
-    log('Failed to mark messages as read: $e');
   }
-}
-
 
   static Future<bool> sendMessage({
     required String chatRoomId,
@@ -358,8 +424,6 @@ static Future<void> setReadToTrue() async {
           .collection('chatRooms')
           .doc(chatRoomId)
           .set({"lastMessage": message.toJson()}, SetOptions(merge: true));
-
-       
 
       // await PushNotificationService.sendNotification(
       //     topicId: LocalService.deviceToken ?? "",
@@ -406,42 +470,43 @@ static Future<void> setReadToTrue() async {
       return null;
     }
   }
-static Future<bool> isUserActiveInChat(String otherUserId) async {
-  try {
-    // Reference to the other user's document
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(otherUserId)
-        .get();
 
-    if (userDoc.exists) {
-      // Retrieve the activeChatId field
-      String? activeChatId = userDoc.get('activeChatId');
+  static Future<bool> isUserActiveInChat(String otherUserId) async {
+    try {
+      // Reference to the other user's document
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(otherUserId)
+          .get();
 
-      // Check if the activeChatId matches the current user's ID
-      return activeChatId == LocalService.userId;
+      if (userDoc.exists) {
+        // Retrieve the activeChatId field
+        String? activeChatId = userDoc.get('activeChatId');
+
+        // Check if the activeChatId matches the current user's ID
+        return activeChatId == LocalService.userId;
+      }
+    } catch (e) {
+      // Log any errors
+      debugPrint("Error checking activeChatId: $e");
     }
-  } catch (e) {
-    // Log any errors
-    debugPrint("Error checking activeChatId: $e");
+    return false;
   }
-  return false;
-}
 
-  // static Future<void> setActiveChatId(String otherUserId) async {
-  //   try {
-  //     // Reference to the user's document
-  //     DocumentReference userDoc = FirebaseFirestore.instance
-  //         .collection('users')
-  //         .doc(LocalService.userId);
+  static Future<void> setActiveChatId(String otherUserId) async {
+    try {
+      // Reference to the user's document
+      DocumentReference userDoc = FirebaseFirestore.instance
+          .collection('users')
+          .doc(LocalService.userId);
 
-  //     // Update the activeChatId field
-  //     await userDoc.update({'activeChatId': otherUserId});
+      // Update the activeChatId field
+      await userDoc.set({'activeChatId': otherUserId}, SetOptions(merge: true));
 
-  //     debugPrint("Active chat ID updated successfully!");
-  //   } catch (e) {
-  //     // Log any errors
-  //     debugPrint("Error setting activeChatId: $e");
-  //   }
-  // }
+      debugPrint("Active chat ID updated successfully!");
+    } catch (e) {
+      // Log any errors
+      debugPrint("Error setting activeChatId: $e");
+    }
+  }
 }

@@ -10,13 +10,17 @@ import 'package:iconsax/iconsax.dart';
 
 class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String name;
+  final String userImage;
+  final Widget onlineStatus;
   final String chatRoomId;
   final void Function()? onTapClearChat;
   const ChatAppBar(
       {super.key,
       required this.name,
       required this.chatRoomId,
-      this.onTapClearChat});
+      this.onTapClearChat,
+      required this.onlineStatus,
+      required this.userImage});
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +41,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           title: Row(
             children: [
               CircleAvatar(
-                radius: 17.r,
+                backgroundImage: NetworkImage(userImage),
                 backgroundColor: AppColors.primaryColor,
               ),
               SizedBox(width: (8.w)),
@@ -48,10 +52,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                     name,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  Text(
-                    "online",
-                    style: Theme.of(context).primaryTextTheme.labelSmall,
-                  ),
+                  onlineStatus
                 ],
               ),
             ],

@@ -1,11 +1,15 @@
+import 'package:chatter/controller/connectivity.dart';
 import 'package:chatter/model/chat.dart';
+import 'package:chatter/services/chat_service.dart';
 import 'package:chatter/services/local_notification.dart';
 import 'package:chatter/services/local_service.dart';
 import 'package:chatter/services/push_notification.dart';
 import 'package:chatter/theme/notification_bar_theme.dart';
 import 'package:chatter/theme/styles.dart';
+import 'package:chatter/utils/get_box.dart';
 import 'package:chatter/view/auth/send_otp.dart';
 import 'package:chatter/view/bottom_bar_page/bottom_bar.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -26,6 +30,7 @@ void main() async {
   Hive.registerAdapter(ChatModelAdapter());
   Hive.registerAdapter(MessageTypeAdapter());
   LocalService.onInit();
+  await HiveBoxManager.getChatBox();
   await LocalNotificationService.reSubscribe();
   await LocalNotificationService.initLocalNotificationService();
   await PushNotificationService.handleForegroundNotification();
@@ -81,32 +86,22 @@ class _InitializationScreenState extends State<InitializationScreen>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
     super.didChangeAppLifecycleState(state);
 
-    switch (state) {
-      case AppLifecycleState.resumed:
-        print("App is in foreground");
-        break;
-      case AppLifecycleState.inactive:
-        print("App is inactive");
-
-        break;
-      case AppLifecycleState.paused:
-        print("App is in background");
-
-        break;
-      case AppLifecycleState.detached:
-        print("App is detached");
-        break;
-      case AppLifecycleState.hidden:
-        print("App is hidden");
+    if (state == AppLifecycleState.detached ||
+        state == AppLifecycleState.paused) {
+      await ChatRoomService.updateLastSeen(
+          timestamp: FieldValue.serverTimestamp());
+    } else if (state == AppLifecycleState.resumed) {
+      await ChatRoomService.updateLastSeen();
     }
   }
 
   Future<void> _initializeApp() async {
-    // Initialize HomeController
-
+    var ctr = Get.put(ConnectivityController());
+    await ctr.initConnectivity();
+    await ChatRoomService.updateLastSeen();
     // Once initialization is done, navigate to the main screen
     setState(() {
       _isLoading = false;
@@ -116,7 +111,7 @@ class _InitializationScreenState extends State<InitializationScreen>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(),
         ),

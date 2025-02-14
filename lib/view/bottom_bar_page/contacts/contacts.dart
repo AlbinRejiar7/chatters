@@ -94,6 +94,8 @@ class ContactsPage extends StatelessWidget {
                                         // );
                                         Get.to(
                                           () => ChatPage(
+                                            image:
+                                                contact.profileImageUrl ?? "",
                                             lastMessages: [],
                                             unreadCount: 0,
                                             receiverId: contact.id,

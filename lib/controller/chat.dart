@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 
+import 'package:chatter/controller/connectivity.dart';
 import 'package:chatter/model/chat.dart';
 import 'package:chatter/services/chat_service.dart';
 import 'package:chatter/services/firebase_services.dart';
@@ -13,7 +14,6 @@ import 'package:uuid/uuid.dart';
 
 class ChatPageController extends GetxController {
   Timer? _debounce;
-  // late Box<ChatModel> chatBox;
   final String chatRoomId;
   final String receiverId;
   final int unReadCount;
@@ -22,8 +22,6 @@ class ChatPageController extends GetxController {
   var messageController = TextEditingController();
   var currentIndex = 0.obs;
   final ScrollController scrollController = ScrollController();
-  var unseenMessages = <ChatModel>[].obs;
-  var activeChatId = "".obs;
 
   // Future<void> loadUnseenMessages(
   //     String chatRoomId, String currentUserId) async {
@@ -102,6 +100,51 @@ class ChatPageController extends GetxController {
   //   });
   // }
 
+  Future<void> fetchAndAddMissedMessages(
+      String chatRoomId, List<ChatModel> newMessages) async {
+    try {
+      List<ChatModel> filteredMessages = [];
+
+      for (ChatModel chatModel in newMessages) {
+        // Ensure the message is from another user before adding
+        if (chatModel.senderId != LocalService.userId) {
+          // Check if the message already exists
+          int existingIndex =
+              sampleChats.indexWhere((chat) => chat.id == chatModel.id);
+
+          if (existingIndex != -1) {
+            // Remove the existing message from sampleChats
+            sampleChats.removeAt(existingIndex);
+            // Remove from local storage
+            await ChatStorageService.deleteMessage(chatRoomId, chatModel.id!);
+          }
+
+          // Add the new message to the list
+          filteredMessages.add(chatModel);
+        }
+      }
+
+      if (filteredMessages.isNotEmpty) {
+        // **First, update the Obx list**
+        sampleChats.addAll(filteredMessages);
+        sampleChats.refresh(); // Refresh to reflect UI changes immediately
+
+        // **Then, store the messages in local storage**
+        await ChatStorageService.addMultipleMessages(
+            chatRoomId, filteredMessages);
+
+        log("${filteredMessages.length} new messages added at the end.");
+
+        // Clear LastMessageIds after processing messages
+        await ChatRoomService.clearLastMessageIds(chatRoomId);
+      } else {
+        log("No new messages from the other user found.");
+      }
+    } catch (e) {
+      print("Error fetching messages: $e");
+    }
+  }
+
   void listenToLastMessageFromOtherUser(
       String chatRoomId, String currentUserId) {
     FirebaseFireStoreServices.firestore
@@ -149,25 +192,75 @@ class ChatPageController extends GetxController {
     });
   }
 
-  // void listenToMessages(String chatRoomId) {
-  //   FirebaseFireStoreServices.firestore
-  //       .collection('chatRooms')
-  //       .doc(chatRoomId)
-  //       .collection('messages')
-  //       .orderBy('timestamp', descending: true)
-  //       .snapshots()
-  //       .listen((QuerySnapshot snapshot) async {
-  //     log("new message arrived");
-  //     final newChats = snapshot.docs
-  //         .map((doc) {
-  //           return ChatModel.fromJson(doc.data() as Map<String, dynamic>);
-  //         })
-  //         .toList()
-  //         .reversed
-  //         .toList();
-  //     sampleChats.value = newChats;
-  //   });
-  // }
+  Future<void> loadInitialMessages(String chatRoomId) async {
+    var messages = await ChatStorageService.getMessages(chatRoomId);
+
+    // Filter out deleted messages
+    sampleChats.assignAll(messages.where((msg) => msg.isDeleted != true));
+
+    if (sampleChats.isEmpty) {
+      log("No local messages found or all messages were deleted, fetching from server...");
+    }
+
+    listenToMessages(chatRoomId);
+  }
+
+  void listenToMessages(String chatRoomId) {
+    var query = FirebaseFireStoreServices.firestore
+        .collection('chatRooms')
+        .doc(chatRoomId)
+        .collection('messages')
+        .orderBy('createdAt', descending: true);
+
+    query.snapshots().listen((QuerySnapshot snapshot) async {
+      if (snapshot.docs.isEmpty) {
+        return;
+      }
+
+      List<ChatModel> newMessages = [];
+      Set<String> deletedMessageIds = {};
+
+      // Fetch all deleted messages in one call to avoid multiple reads
+      final localMessages = await ChatStorageService.getMessages(chatRoomId);
+      deletedMessageIds.addAll(localMessages
+          .where((msg) => msg.isDeleted == true)
+          .map((msg) => msg.id ?? ""));
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>?;
+
+        if (data == null || !data.containsKey('createdAt')) {
+          continue;
+        }
+
+        final newMessage = ChatModel.fromJson(data);
+
+        // Skip if the message is marked as deleted
+        if (deletedMessageIds.contains(newMessage.id)) {
+          continue;
+        }
+
+        final existingMessageIndex =
+            sampleChats.indexWhere((chat) => chat.id == newMessage.id);
+
+        if (existingMessageIndex != -1) {
+          // Update the existing message
+          sampleChats[existingMessageIndex] = newMessage;
+        } else {
+          // Insert new message
+          newMessages.add(newMessage);
+        }
+      }
+
+      if (newMessages.isNotEmpty) {
+        sampleChats.insertAll(0, newMessages);
+        sampleChats.refresh();
+      }
+
+      // Batch update local storage with new messages
+      await ChatStorageService.addMessages(chatRoomId, newMessages);
+    });
+  }
 
   var sampleChats = <ChatModel>[].obs;
 
@@ -190,7 +283,8 @@ class ChatPageController extends GetxController {
     List<ChatModel> chatsCopy = List.from(sampleChats);
 
     for (var chat in chatsCopy) {
-      await ChatStorageService.deleteMessage(chatRoomId, chat.id ?? "");
+      await ChatStorageService.updateMessage(
+          chatRoomId, ChatModel(id: chat.id, isDeleted: true));
       deleteMessageFromSampleChats(chat.id ?? "");
     }
 
@@ -211,6 +305,7 @@ class ChatPageController extends GetxController {
   void sendMessage() async {
     var isEmpty = sampleChats.isEmpty;
     log("sendMessage tapped");
+
     if (messageController.text.trim().isEmpty) return;
     if (_debounce?.isActive ?? false) _debounce?.cancel();
 
@@ -221,67 +316,58 @@ class ChatPageController extends GetxController {
       message: messageController.text.trim(),
       timestamp: DateTime.now(),
       isSentByMe: true,
-      isRead: activeChatId.value == LocalService.userId ? true : null,
+      isRead: null,
       isSend: false,
       mediaUrl: "",
       messageType: MessageType.text,
       receiverId: receiverId,
     );
+
     sampleChats.insert(0, message);
     messageController.clear();
-    _debounce = Timer(const Duration(milliseconds: 100), () async {
-      message?.isSend = true;
-      // var mediaUrl =
-      //     await FirebaseStorageSerivce.uploadUserImage(
-      //   phoneNumber: message.receiverId ?? "",
-      //   imageFile: File(controller.profileImage.value!.path),
-      // );
 
-      // message.mediaUrl = mediaUrl;
-      if (true) {
-        log("Empty");
+    _debounce = Timer(const Duration(milliseconds: 100), () async {
+      var isConnected = (Get.find<ConnectivityController>().isConnected.value);
+      if (!isConnected) {
+        // No internet, store the message locally
+        log("No internet. Storing message locally.");
+        await ChatStorageService.storeUnsentMessage(chatRoomId, message);
+        return;
+      }
+
+      await _sendMessageToServer(message);
+    });
+  }
+
+  Future<void> _sendMessageToServer(ChatModel message) async {
+    try {
+      message.isSend = true;
+
+      if (sampleChats.isEmpty) {
         await ChatRoomService.createChatRoomWithFirstMessage(
           message: message,
-          receiverId: receiverId,
-          participants: [LocalService.userId ?? "", receiverId],
+          receiverId: message.receiverId!,
+          participants: [LocalService.userId ?? "", message.receiverId!],
           isGroup: false,
-        ).then(
-          (value) async {
-            await ChatStorageService.addMessage(chatRoomId, message);
-
-            log(" new message after sending");
-            update();
-          },
-        );
+        ).then((value) async {
+          await ChatStorageService.addMessage(chatRoomId, message);
+          update();
+        });
       } else {
-        log("Not Empty");
         await ChatRoomService.sendMessage(
                 chatRoomId: chatRoomId, message: message)
-            .then(
-          (value) async {
-            if (value) {
-              if (activeChatId.value != LocalService.userId) {
-                // await PushNotificationService.sendNotification(
-                //   topicId: receiverId?.replaceAll("+", "_") ?? "",
-                //   body: message.message ?? "",
-                //   title: message.senderName ?? "",
-                // );
-              }
-              // if ((activeChatId.value != LocalService.userId)) {
-              //   log("Value added to the list!");
-              //   addToLastMsgList(chatRoomId, message);
-              //   await ChatRoomService.incrementUnreadMessageCount(
-              //       message.receiverId ?? "");
-              // }
-              await ChatStorageService.addMessage(chatRoomId, message);
-
-              log("${value} new message after sending");
-              update();
-            }
-          },
-        );
+            .then((value) async {
+          await ChatStorageService.addMessage(chatRoomId, message);
+          update();
+        });
       }
-    });
+
+      // Remove the message from local storage if successfully sent
+      await ChatStorageService.removeUnsentMessage(chatRoomId, message.id!);
+    } catch (e) {
+      log("Error sending message: $e");
+      await ChatStorageService.storeUnsentMessage(chatRoomId, message);
+    }
   }
 
   Future<void> getLastMsgListAndAddtoOriginalList(String chatRoomId) async {
@@ -314,10 +400,6 @@ class ChatPageController extends GetxController {
             }
             sampleChats.refresh();
           }
-        }
-
-        if (activeChatId.value == LocalService.userId) {
-          clearAllLastMessages();
         }
       }
     } catch (e) {
@@ -387,11 +469,12 @@ class ChatPageController extends GetxController {
   // }
 
   @override
-  void onClose() {
+  void onClose() async {
     // TODO: implement onClose
     super.onClose();
     messageController.dispose();
     _debounce?.cancel();
+    await ChatRoomService.setActiveChatId("");
   }
 
 // Timestamp to track the latest message's createdAt field
@@ -464,25 +547,25 @@ class ChatPageController extends GetxController {
   //   });
   // }
 
-  void listenToActiveChatId(String userID) {
-    try {
-      // Reference to the user's document
-      DocumentReference userDoc =
-          FirebaseFirestore.instance.collection('users').doc(userID);
+  // void listenToActiveChatId(String userID) {
+  //   try {
+  //     // Reference to the user's document
+  //     DocumentReference userDoc =
+  //         FirebaseFirestore.instance.collection('users').doc(userID);
 
-      // Listen to real-time updates
-      userDoc.snapshots().listen((snapshot) {
-        if (snapshot.exists) {
-          Map<String, dynamic>? data = snapshot.data() as Map<String, dynamic>?;
-          activeChatId.value = data?['activeChatId'] ?? "";
-          log("Active chat ID updated: ${activeChatId.value}");
-        }
-      });
-    } catch (e) {
-      // Log any errors
-      log("Error listening to activeChatId: $e");
-    }
-  }
+  //     // Listen to real-time updates
+  //     userDoc.snapshots().listen((snapshot) {
+  //       if (snapshot.exists) {
+  //         Map<String, dynamic>? data = snapshot.data() as Map<String, dynamic>?;
+  //         activeChatId.value = data?['activeChatId'] ?? "";
+  //         log("Active chat ID updated: ${activeChatId.value}");
+  //       }
+  //     });
+  //   } catch (e) {
+  //     // Log any errors
+  //     log("Error listening to activeChatId: $e");
+  //   }
+  // }
 
   Future<void> markMessageAsRead(String chatRoomId, String messageId) async {
     try {
@@ -630,26 +713,26 @@ class ChatPageController extends GetxController {
     }
   }
 
-  void syncLastMessagesWithAllChats() {
-    // Log the initial sizes for debugging
-    log("Initial size of allChats: ${sampleChats.length}");
-    log("Size of listOfLastMessages: ${lastMesages.length}");
+  // void syncLastMessagesWithAllChats() {
+  //   // Log the initial sizes for debugging
+  //   log("Initial size of allChats: ${sampleChats.length}");
+  //   log("Size of listOfLastMessages: ${lastMesages.length}");
 
-    // Convert allChats to a Set of message IDs for efficient lookups
-    final allChatIds = sampleChats.map((message) => message.id).toSet();
+  //   // Convert allChats to a Set of message IDs for efficient lookups
+  //   final allChatIds = sampleChats.map((message) => message.id).toSet();
 
-    // Loop through listOfLastMessages
-    for (ChatModel message in lastMesages) {
-      if (!allChatIds.contains(message.id)) {
-        // Add the new message to allChats
-        sampleChats.insert(0, message);
-        ChatStorageService.addMessage(chatRoomId, message);
-        log("Added new message with ID: ${message.id}");
-      }
-    }
+  //   // Loop through listOfLastMessages
+  //   for (ChatModel message in lastMesages) {
+  //     if (!allChatIds.contains(message.id)) {
+  //       // Add the new message to allChats
+  //       sampleChats.insert(0, message);
+  //       ChatStorageService.addMessage(chatRoomId, message);
+  //       log("Added new message with ID: ${message.id}");
+  //     }
+  //   }
 
-    log("Final size of allChats: ${sampleChats.length}");
-  }
+  //   log("Final size of allChats: ${sampleChats.length}");
+  // }
 
   Future<void> deleteLastMessage(String messageId, String chatRoomId) async {
     try {
@@ -686,20 +769,20 @@ class ChatPageController extends GetxController {
 
     // sampleChats.value = await loadMessagesFromHive();
 
-    // listenToMessages(chatRoomId);
-    // listenToNewMessages(chatRoomId);
     // listenToLastMessageFromOtherUser(chatRoomId, LocalService.userId ?? "");
 
     // ChatRoomService.resetUnreadMessageCount(receiverId, unReadCount);
-    listenToLastMessageFromOtherUser(chatRoomId, LocalService.userId ?? "");
-    listenToUnreadMessages(chatRoomId, LocalService.userId ?? "");
-    // ChatRoomService.setActiveChatId(receiverId);
+    // listenToLastMessageFromOtherUser(chatRoomId, LocalService.userId ?? "");
+    // listenToUnreadMessages(chatRoomId, LocalService.userId ?? "");
+
     // listenToActiveChatId(receiverId);
 
-    var messages = await ChatStorageService.getMessages(chatRoomId);
-    sampleChats(messages);
+    await loadInitialMessages(chatRoomId);
+    // listenToActiveChatId(receiverId);
+    // await fetchAndAddMissedMessages(chatRoomId, lastMesages.reversed.toList());
+
     // await loadUnseenMessages(chatRoomId, LocalService.userId ?? "");
-    sampleChats.addAll(unseenMessages);
+
 // Call the function only if the receiver is not the current user
     // ever(activeChatId, (value) async {
     //   log("${activeChatId} ------------------------------- activeChatId changed id");
@@ -707,5 +790,6 @@ class ChatPageController extends GetxController {
     //   await getLastMsgListAndAddtoOriginalList(chatRoomId);
     // });
     // syncLastMessagesWithAllChats();
+    // await ChatRoomService.setActiveChatId(receiverId);
   }
 }

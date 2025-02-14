@@ -1,11 +1,14 @@
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/controller/chat.dart';
 import 'package:chatter/model/chat.dart';
+import 'package:chatter/utils/format_time.dart';
 import 'package:chatter/utils/is_only_emoji.dart';
+import 'package:chatter/utils/sizedboxwidget.dart';
 import 'package:chatter/view/chat/chat.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class Otheruserbubble extends StatelessWidget {
   final ChatModel chat;
@@ -28,8 +31,8 @@ class Otheruserbubble extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 7.h),
       margin: EdgeInsets.only(
-        top: 1,
-        bottom: shouldAddBottomSpacing(chat, previous, next) ? 10 : 1,
+        top: 3,
+        bottom: shouldAddBottomSpacing(chat, previous, next) ? 15 : 1,
         right: 100,
         left: 8,
       ),
@@ -50,7 +53,7 @@ class Otheruserbubble extends StatelessWidget {
         ),
       ),
       child: Wrap(
-        alignment: WrapAlignment.start,
+        alignment: WrapAlignment.end,
         crossAxisAlignment: WrapCrossAlignment.end,
         children: [
           Text(
@@ -58,6 +61,14 @@ class Otheruserbubble extends StatelessWidget {
             style: TextStyle(
               color: Colors.black,
               fontSize: isOnlyEmojis(chat.message ?? '') ? 28.sp : 14.sp,
+            ),
+          ),
+          kWidth(10.w),
+          Text(
+            formatTime(chat.timestamp),
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              color: AppColors.darkColor,
             ),
           ),
         ],
@@ -73,5 +84,5 @@ bool shouldAddBottomSpacing(
   ChatModel? next,
 ) {
   return (previous?.senderId != chat.senderId &&
-      next?.senderId != chat.senderId);
+      next?.senderId == chat.senderId);
 }

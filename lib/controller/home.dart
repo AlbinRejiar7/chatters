@@ -24,7 +24,7 @@ class HomeController extends GetxController {
         .where('pinChat', isEqualTo: false)
         .where('archive', isEqualTo: false)
         .orderBy('lastMessage.createdAt', descending: true)
-        .snapshots()
+        .snapshots(includeMetadataChanges: true)
         .listen((chatRoomSnapshot) async {
       log("📌 Received ${chatRoomSnapshot.docs.length} chat rooms from Firestore");
 

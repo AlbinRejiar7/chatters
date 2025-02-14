@@ -303,7 +303,7 @@ class ChatPageController extends GetxController {
   }
 
   void sendMessage() async {
-    var isEmpty = sampleChats.isEmpty;
+  
     log("sendMessage tapped");
 
     if (messageController.text.trim().isEmpty) return;
@@ -342,7 +342,8 @@ class ChatPageController extends GetxController {
   Future<void> _sendMessageToServer(ChatModel message) async {
     try {
       message.isSend = true;
-
+      await ChatRoomService.updateIsTyping(
+          isTyping: false, chatroomId: chatRoomId);
       if (sampleChats.isEmpty) {
         await ChatRoomService.createChatRoomWithFirstMessage(
           message: message,

@@ -11,6 +11,7 @@ import 'package:chatter/view/chat/widgets/delete.dart';
 import 'package:chatter/view/chat/widgets/otheruserbubble.dart';
 import 'package:chatter/view/chat/widgets/plus_icon.dart';
 import 'package:chatter/widgets/chat_app_bar.dart';
+import 'package:chatter/widgets/typing_indicator.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -59,119 +60,128 @@ class ChatPage extends StatelessWidget {
         chatRoomId: chatRoomId,
         name: name,
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Obx(
-              () => ctr.sampleChats.isEmpty
-                  ? Center(
-                      child: Text(
-                        textAlign: TextAlign.center,
-                        "Send your message!!",
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    )
-                  : ListView.builder(
-                      reverse: true,
-                      // key: ctr
-                      //     .listKey, // Optional: Remove this if not required for normal ListView
-                      // controller: ctr.scrollController,
-                      itemCount: ctr.sampleChats.length,
-                      itemBuilder: (context, index) {
-                        var reversedChat = ctr.sampleChats.toList();
+      body: SafeArea(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Obx(
+                () => ctr.sampleChats.isEmpty
+                    ? Center(
+                        child: Text(
+                          textAlign: TextAlign.center,
+                          "Send your message!!",
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      )
+                    : AnimatedList(
+                        key: ctr.listKey,
+                        reverse: true,
+                        initialItemCount: ctr.sampleChats.length +
+                            (userStatusCtr.isTyping.value
+                                ? 1
+                                : 0), // Add 1 only if typing
+                        itemBuilder: (context, index, animation) {
+                          // Show "typing..." at the 0th index if isTyping is true
+                          if (userStatusCtr.isTyping.value && index == 0) {
+                            return Obx(() {
+                              return Padding(
+                                padding: EdgeInsets.only(left: 10.w),
+                                child: TypingIndicator(
+                                  size: 0.7.w,
+                                  bubbleColor: AppColors.primaryLight,
+                                  flashingCircleBrightColor:
+                                      AppColors.primaryLight,
+                                  flashingCircleDarkColor:
+                                      AppColors.primaryColor,
+                                  showIndicator:
+                                      userStatusCtr.lastSeenString.value ==
+                                              "online" &&
+                                          userStatusCtr.isTyping.value,
+                                ),
+                              );
+                            });
+                          }
 
-                        final chat = reversedChat[index];
-                        chat.isSentByMe = chat.senderId == LocalService.userId;
-                        final ChatModel? previous =
-                            index > 0 ? reversedChat[index - 1] : null;
-                        final ChatModel? next = index < reversedChat.length - 1
-                            ? reversedChat[index + 1]
-                            : null;
+                          // Adjust index if "typing..." is present
+                          int adjustedIndex =
+                              userStatusCtr.isTyping.value ? index - 1 : index;
 
-                        // Check if this message should display a date header
-                        // final bool showDateHeader = previous == null ||
-                        //     !isSameDay(chat.timestamp, previous.timestamp);
-                        // if (chat.senderId == LocalService.userId) {
-                        //   if (chat.isRead == false) {
-                        //     ChatRoomService.setReadToTrue(receiverId, chat.id ?? "");
-                        //   }
-                        // }
-                        return Column(
-                          children: [
-                            // Uncomment for date headers:
-                            // if (showDateHeader) ...[
-                            //   Center(
-                            //     child: Padding(
-                            //       padding: const EdgeInsets.only(bottom: 5),
-                            //       child: Text(formatDate(chat.timestamp),
-                            //           style: Theme.of(context)
-                            //               .textTheme
-                            //               .bodyLarge
-                            //               ?.copyWith(fontWeight: FontWeight.normal)),
-                            //     ),
-                            //   ),
-                            // ],
+                          var reversedChat = ctr.sampleChats.toList();
+                          final chat = reversedChat[adjustedIndex];
 
-                            GetBuilder<ChatPageController>(builder: (__) {
-                              return chat.messageType == MessageType.image
-                                  ? Row(
-                                      mainAxisAlignment:
-                                          (chat.isSentByMe ?? false)
-                                              ? MainAxisAlignment.end
-                                              : MainAxisAlignment.start,
-                                      children: [
-                                        chat.isSend ?? false
-                                            ? Image.network(
-                                                chat.mediaUrl ?? "",
-                                                height: 200,
-                                              )
-                                            : const CupertinoActivityIndicator(
-                                                radius: 50,
-                                                color: AppColors.primaryColor,
-                                              ),
-                                      ],
-                                    )
-                                  : GestureDetector(
-                                      onLongPress: () {
-                                        showDeleteMessageDialog(
-                                            context, chatRoomId, chat.id ?? '');
-                                      },
-                                      child: SizedBox(
-                                        width: context.width,
-                                        child: TextMessageBubble(
-                                          chatRoomId: chatRoomId,
-                                          chat: chat,
-                                          previous: previous,
-                                          next: next,
+                          chat.isSentByMe =
+                              chat.senderId == LocalService.userId;
+                          final ChatModel? previous = adjustedIndex > 0
+                              ? reversedChat[adjustedIndex - 1]
+                              : null;
+                          final ChatModel? next =
+                              adjustedIndex < reversedChat.length - 1
+                                  ? reversedChat[adjustedIndex + 1]
+                                  : null;
+
+                          return Column(
+                            children: [
+                              GetBuilder<ChatPageController>(builder: (__) {
+                                return chat.messageType == MessageType.image
+                                    ? Row(
+                                        mainAxisAlignment:
+                                            (chat.isSentByMe ?? false)
+                                                ? MainAxisAlignment.end
+                                                : MainAxisAlignment.start,
+                                        children: [
+                                          chat.isSend ?? false
+                                              ? Image.network(
+                                                  chat.mediaUrl ?? "",
+                                                  height: 200,
+                                                )
+                                              : const CupertinoActivityIndicator(
+                                                  radius: 50,
+                                                  color: AppColors.primaryColor,
+                                                ),
+                                        ],
+                                      )
+                                    : GestureDetector(
+                                        onLongPress: () {
+                                          showDeleteMessageDialog(context,
+                                              chatRoomId, chat.id ?? '');
+                                        },
+                                        child: SizedBox(
+                                          width: context.width,
+                                          child: TextMessageBubble(
+                                            chatRoomId: chatRoomId,
+                                            chat: chat,
+                                            previous: previous,
+                                            next: next,
+                                          ),
                                         ),
-                                      ),
-                                    );
-                            }),
-                          ],
-                        );
-                      },
-                    ),
+                                      );
+                              }),
+                            ],
+                          );
+                        },
+                      ),
+              ),
             ),
-          ),
 
-          Padding(
-            padding: EdgeInsets.all(4.w),
-            child: Row(
-              children: [
-                SendTextField(ctr: ctr),
-                kWidth((5.w)),
-                SendMicButton(
-                  isSend: true,
-                  onTap: () {
-                    ctr.sendMessage();
-                  },
-                ),
-              ],
+            Padding(
+              padding: EdgeInsets.all(4.w),
+              child: Row(
+                children: [
+                  SendTextField(ctr: ctr),
+                  kWidth((5.w)),
+                  SendMicButton(
+                    isSend: true,
+                    onTap: () {
+                      ctr.sendMessage();
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-          // AudioBubble(filepath: 'asdasdasdasd'),
-        ],
+            // AudioBubble(filepath: 'asdasdasdasd'),
+          ],
+        ),
       ),
     );
   }
@@ -205,6 +215,10 @@ class SendTextField extends StatelessWidget {
               maxLines: 4,
               cursorColor: AppColors.primaryColor,
               controller: ctr.messageController,
+              onChanged: (value) async {
+                await ChatRoomService.updateIsTyping(
+                    isTyping: value.isNotEmpty, chatroomId: ctr.chatRoomId);
+              },
               decoration: InputDecoration(
                 hintStyle: Theme.of(context)
                     .textTheme

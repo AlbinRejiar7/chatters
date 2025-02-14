@@ -1,3 +1,6 @@
+import 'dart:developer';
+
+import 'package:chatter/services/chat_service.dart';
 import 'package:chatter/utils/format_time.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +12,33 @@ class UserOnlineStatusController extends GetxController {
   UserOnlineStatusController({required this.otherUserId});
 
   RxString lastSeenString = "".obs;
+  RxBool isTyping = false.obs; // Observable variable to track typing status
+
+  void listenToTyping(String chatroomId) {
+    log("listening to ");
+    try {
+      FirebaseFirestore.instance
+          .collection('chatRooms')
+          .doc(chatroomId)
+          .snapshots()
+          .listen(
+        (snapshot) {
+          if (snapshot.exists) {
+            bool typingStatus =
+                snapshot.data()?['isTyping$otherUserId'] ?? false;
+            isTyping.value = typingStatus;
+          } else {
+            print("⚠️ Chatroom document does not exist.");
+          }
+        },
+        onError: (error) {
+          print("❌ Error listening to typing status: $error");
+        },
+      );
+    } catch (e) {
+      print("❌ Exception in listenToTyping: $e");
+    }
+  }
 
   void listenToAppTerminationStatus(String otherUserId) {
     FirebaseFirestore.instance
@@ -49,7 +79,7 @@ class UserOnlineStatusController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-
+    listenToTyping(ChatRoomService.getConversationID(otherUserId));
     listenToAppTerminationStatus(otherUserId);
   }
 }

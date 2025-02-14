@@ -96,6 +96,21 @@ class ChatRoomService {
     }
   }
 
+  static Future<void> updateIsTyping(
+      {required bool isTyping, required String chatroomId}) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('chatRooms')
+          .doc(chatroomId)
+          .set({'isTyping${LocalService.userId}': isTyping},
+              SetOptions(merge: true));
+
+      print("✅isTyping updated for ${LocalService.userId}");
+    } catch (e) {
+      print("❌ Error updating last seen: $e");
+    }
+  }
+
   static Future<void> addlastMessageListToFireBase(
       {required ChatModel message,
       required String chatroomId,

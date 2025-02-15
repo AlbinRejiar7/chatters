@@ -28,6 +28,7 @@ class Otheruserbubble extends StatelessWidget {
     if (chat.isRead == null) {
       ctr.markMessageAsRead(chatroomId, chat.id ?? "");
     }
+    
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 7.h),
       margin: EdgeInsets.only(

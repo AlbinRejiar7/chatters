@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/controller/chat.dart';
 import 'package:chatter/controller/user_online.dart';
@@ -74,14 +76,14 @@ class ChatPage extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                       )
-                    : AnimatedList(
+                    : ListView.builder(
                         key: ctr.listKey,
                         reverse: true,
-                        initialItemCount: ctr.sampleChats.length +
+                        itemCount: ctr.sampleChats.length +
                             (userStatusCtr.isTyping.value
                                 ? 1
                                 : 0), // Add 1 only if typing
-                        itemBuilder: (context, index, animation) {
+                        itemBuilder: (context, index) {
                           // Show "typing..." at the 0th index if isTyping is true
                           if (userStatusCtr.isTyping.value && index == 0) {
                             return Obx(() {
@@ -163,7 +165,6 @@ class ChatPage extends StatelessWidget {
                       ),
               ),
             ),
-
             Padding(
               padding: EdgeInsets.all(4.w),
               child: Row(
@@ -179,7 +180,6 @@ class ChatPage extends StatelessWidget {
                 ],
               ),
             ),
-            // AudioBubble(filepath: 'asdasdasdasd'),
           ],
         ),
       ),
@@ -215,9 +215,32 @@ class SendTextField extends StatelessWidget {
               maxLines: 4,
               cursorColor: AppColors.primaryColor,
               controller: ctr.messageController,
-              onChanged: (value) async {
-                await ChatRoomService.updateIsTyping(
-                    isTyping: value.isNotEmpty, chatroomId: ctr.chatRoomId);
+              onChanged: (value) {
+                bool isTypingNow = value.isNotEmpty;
+
+                // Update only if the typing state has changed
+                if (isTypingNow != ctr.isCurrentlyTyping) {
+                  ctr.isCurrentlyTyping = isTypingNow;
+                  ChatRoomService.updateIsTyping(
+                      isTyping: ctr.isCurrentlyTyping,
+                      chatroomId: ctr.chatRoomId);
+                }
+
+                // Reset the debounce timer
+                ctr.typingTimer?.cancel();
+
+                if (isTypingNow) {
+                  // If user is typing, don't set a stop timer yet
+                  return;
+                }
+
+                // If user stops typing, wait 1 second before marking as not typing
+                ctr.typingTimer = Timer(const Duration(seconds: 1), () {
+                  if (!ctr.isCurrentlyTyping) {
+                    ChatRoomService.updateIsTyping(
+                        isTyping: false, chatroomId: ctr.chatRoomId);
+                  }
+                });
               },
               decoration: InputDecoration(
                 hintStyle: Theme.of(context)
@@ -229,7 +252,7 @@ class SendTextField extends StatelessWidget {
                 hintText: "message",
                 border: InputBorder.none,
               ),
-            ),
+            )
           ],
         ),
       ),

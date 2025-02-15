@@ -6,8 +6,11 @@ class CallsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-   
-      body:  Center(child: Text("Calls")),
+      body: Row(
+        children: [
+          Text("slide to cancel"),
+        ],
+      ),
     );
   }
 }

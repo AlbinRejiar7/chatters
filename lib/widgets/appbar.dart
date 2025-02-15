@@ -3,6 +3,7 @@ import 'package:chatter/constants/light_font_style.dart';
 import 'package:chatter/controller/search.dart';
 import 'package:chatter/services/local_service.dart';
 import 'package:chatter/view/setting/logout.dart';
+import 'package:chatter/widgets/test_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -101,10 +102,13 @@ class AnimatedSearchAppBar extends StatelessWidget
                 style: LightFontStyle.textMedium,
               )),
               PopupMenuItem(
+                  onTap: () {
+                    Get.to(() => MicTestPage());
+                  },
                   child: Text(
-                'Mark all read',
-                style: LightFontStyle.textMedium,
-              )),
+                    'Mark all read',
+                    style: LightFontStyle.textMedium,
+                  )),
               PopupMenuItem(
                   child: Text(
                 'Filter unread chats',

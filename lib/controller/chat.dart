@@ -429,7 +429,9 @@ class ChatPageController extends GetxController {
 
   void sendMessage({required MessageType messageType, String? mediaUrl}) async {
     log("sendMessage tapped ${mediaUrl}");
-    messageController.text = mediaUrl ?? "";
+    if (mediaUrl != null) {
+      messageController.text = mediaUrl ?? "";
+    }
     if (messageController.text.trim().isEmpty) return;
     if (_debounce?.isActive ?? false) _debounce?.cancel();
 

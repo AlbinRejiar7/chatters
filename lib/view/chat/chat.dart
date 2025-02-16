@@ -172,21 +172,18 @@ class ChatPage extends StatelessWidget {
                       await audioRecorderCtr.toggleRecording();
                     },
                     onSendTap: () {
-                      // ctr.sendMessage(messageType: MessageType.text);
+                      ctr.sendMessage(messageType: MessageType.text);
                     },
                     onLongPressRelease: () async {
                       await audioRecorderCtr.toggleRecording();
-                      if (audioRecorderCtr.isRecording.value == false) {
-                        if (audioRecorderCtr.filePath.value.isNotEmpty) {
-                          var mediaUrl =
-                              await FirebaseStorageSerivce.uploadUserAudio(
-                                  phoneNumber: LocalService.userId ?? "",
-                                  audioFile:
-                                      File(audioRecorderCtr.filePath.value));
-                          ctr.sendMessage(
-                              messageType: MessageType.audio,
-                              mediaUrl: mediaUrl);
-                        }
+                      if (audioRecorderCtr.filePath.value.isNotEmpty) {
+                        var mediaUrl =
+                            await FirebaseStorageSerivce.uploadUserAudio(
+                                phoneNumber: LocalService.userId ?? "",
+                                audioFile:
+                                    File(audioRecorderCtr.filePath.value));
+                        ctr.sendMessage(
+                            messageType: MessageType.audio, mediaUrl: mediaUrl);
                       }
                     },
                     onSlideToCancel: () {

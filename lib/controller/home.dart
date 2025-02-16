@@ -10,10 +10,12 @@ class HomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    print("HomeController initialized");
     listenToChatRooms();
   }
 
   void listenToChatRooms() async {
+    print("Listening to chat rooms...");
     FirebaseFirestore.instance
         .collection('chatRooms')
         .where('participants', arrayContains: LocalService.userId ?? "")
@@ -22,13 +24,16 @@ class HomeController extends GetxController {
         .orderBy('lastMessage.createdAt', descending: true)
         .snapshots(includeMetadataChanges: true)
         .listen((chatRoomSnapshot) async {
+      print("Chat room snapshot received, processing...");
       List<ChatRoomDetailModel> fetchedChatRooms = [];
 
       for (var doc in chatRoomSnapshot.docs) {
         try {
           Map<String, dynamic> data = doc.data();
+          print("Processing chat room: ${doc.id}");
 
           if (!data.containsKey('lastMessage') || data['lastMessage'] == null) {
+            print("Skipping chat room ${doc.id}: No last message");
             continue;
           }
 
@@ -36,6 +41,7 @@ class HomeController extends GetxController {
           try {
             chatRoomModel = ChatRoomDetailModel.fromMap(data);
           } catch (e) {
+            print("Error parsing chat room ${doc.id}: $e");
             continue;
           }
 
@@ -48,6 +54,7 @@ class HomeController extends GetxController {
           );
 
           if (otherUserId.isEmpty) {
+            print("Skipping chat room ${doc.id}: No valid participant");
             continue;
           }
 
@@ -55,23 +62,29 @@ class HomeController extends GetxController {
           var userDetails =
               await FirebaseAuthServices.getUserDetailsBydocId(otherUserId);
           if (userDetails == null) {
+            print("Skipping chat room ${doc.id}: User details not found");
             continue;
           }
 
           // Skip if the last message is empty
           if (!(chatRoomModel.lastMessage?.message?.isNotEmpty ?? false)) {
+            print("Skipping chat room ${doc.id}: Last message is empty");
             continue;
           }
 
           chatRoomModel.chatRoomImage = userDetails.profileImageUrl ?? "";
           chatRoomModel.chatRoomName = userDetails.username ?? "Unknown User";
 
+          print("Chat room ${doc.id} added: ${chatRoomModel.chatRoomName}");
           fetchedChatRooms.add(chatRoomModel);
-        } catch (e) {}
+        } catch (e) {
+          print("Unexpected error processing chat room ${doc.id}: $e");
+        }
       }
 
       // Update the observable list
       chatRooms.assignAll(fetchedChatRooms);
+      print("Chat rooms list updated: ${chatRooms.length} rooms");
     });
   }
 }

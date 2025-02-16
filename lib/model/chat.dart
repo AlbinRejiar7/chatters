@@ -63,7 +63,10 @@ class ChatModel {
   String? replyToMessageId;
 
   @HiveField(19)
-  DateTime? createdAt; // New field added
+  DateTime? createdAt;
+
+  @HiveField(20)
+  DateTime? lastUpdated; // New field added
 
   ChatModel({
     this.id,
@@ -85,7 +88,8 @@ class ChatModel {
     this.reactions,
     this.mentions,
     this.replyToMessageId,
-    this.createdAt, // Initialize new field
+    this.createdAt,
+    this.lastUpdated, // Initialize new field
   });
 
   // Factory to parse JSON
@@ -97,7 +101,8 @@ class ChatModel {
       receiverId: json['receiverId']?.toString(),
       message: json['message']?.toString(),
       timestamp: _parseTimestamp(json['timestamp']),
-      createdAt: _parseTimestamp(json['createdAt']), // Parsing createdAt
+      createdAt: _parseTimestamp(json['createdAt']),
+      lastUpdated: _parseTimestamp(json['lastUpdated']), // Parsing lastUpdated
       isSentByMe: json['isSentByMe'] as bool?,
       isRead: json['isRead'] as bool?,
       messageType: json['messageType'] != null
@@ -154,8 +159,10 @@ class ChatModel {
       'receiverId': receiverId,
       'message': message,
       'timestamp': timestamp?.toIso8601String(),
-      'createdAt': Timestamp.fromDate(
-          createdAt ?? DateTime.now()), // Include createdAt in JSON
+      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
+      'lastUpdated': lastUpdated != null
+          ? Timestamp.fromDate(lastUpdated!)
+          : null, // Include lastUpdated
       'isSentByMe': isSentByMe,
       'isRead': isRead,
       'messageType': messageType?.toString().split('.').last,
@@ -194,7 +201,8 @@ class ChatModel {
     List<String>? reactions,
     List<String>? mentions,
     String? replyToMessageId,
-    DateTime? createdAt, // Add createdAt to copyWith
+    DateTime? createdAt,
+    DateTime? lastUpdated, // Add lastUpdated to copyWith
   }) {
     return ChatModel(
       id: id ?? this.id,
@@ -203,7 +211,8 @@ class ChatModel {
       receiverId: receiverId ?? this.receiverId,
       message: message ?? this.message,
       timestamp: timestamp ?? this.timestamp,
-      createdAt: createdAt ?? this.createdAt, // Assign createdAt
+      createdAt: createdAt ?? this.createdAt,
+      lastUpdated: lastUpdated ?? this.lastUpdated, // Assign lastUpdated
       isSentByMe: isSentByMe ?? this.isSentByMe,
       isRead: isRead ?? this.isRead,
       messageType: messageType ?? this.messageType,

@@ -1,0 +1,2 @@
+C:/Users/albin/Documents/my_projects/flutter-chatter/chatter/android/app/.cxx/RelWithDebInfo/5hs1u2q6/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/albin/Documents/my_projects/flutter-chatter/chatter/android/app/.cxx/RelWithDebInfo/5hs1u2q6/x86_64/CMakeFiles/rebuild_cache.dir

@@ -64,6 +64,8 @@ class MyApp extends StatelessWidget {
 }
 
 class InitializationScreen extends StatefulWidget {
+  const InitializationScreen({super.key});
+
   @override
   _InitializationScreenState createState() => _InitializationScreenState();
 }
@@ -90,7 +92,9 @@ class _InitializationScreenState extends State<InitializationScreen>
     super.didChangeAppLifecycleState(state);
 
     if (state == AppLifecycleState.detached ||
-        state == AppLifecycleState.paused) {
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.inactive) {
       await ChatRoomService.updateLastSeen(
           timestamp: FieldValue.serverTimestamp());
     } else if (state == AppLifecycleState.resumed) {

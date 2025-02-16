@@ -10,7 +10,7 @@ class MicTestPage extends StatelessWidget {
       body: SafeArea(
           child: Padding(
         padding: const EdgeInsets.all(50),
-        child: PositionedTransitionExample(),
+        child: MicAnimationWidget(),
       )),
     );
   }

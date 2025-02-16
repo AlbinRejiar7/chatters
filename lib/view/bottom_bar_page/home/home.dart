@@ -1,5 +1,6 @@
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/controller/home.dart';
+import 'package:chatter/model/chat.dart';
 import 'package:chatter/model/chat_room_detail.dart';
 import 'package:chatter/services/local_service.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
@@ -89,7 +90,9 @@ class CustomUserTile extends StatelessWidget {
           kWidth((3.w)),
           Flexible(
             child: Text(
-              chatRoomDetailModel.lastMessage?.message ?? "",
+              chatRoomDetailModel.lastMessage?.messageType == MessageType.audio
+                  ? "Audio message"
+                  : chatRoomDetailModel.lastMessage?.message ?? "",
               style: Theme.of(context).primaryTextTheme.labelSmall,
               overflow: TextOverflow.ellipsis,
             ),

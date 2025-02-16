@@ -25,20 +25,6 @@ class ChatRoomService {
 
       debugPrint('Step 1: Chat Room ID generated: $chatRoomId');
 
-      // Step 2: Check if chat room already exists
-      debugPrint('Step 2: Checking if chat room exists...');
-      var exists = await FirebaseFirestore.instance
-          .collection('chatRooms')
-          .doc(chatRoomId)
-          .get()
-          .then((doc) => doc.exists);
-      debugPrint('Step 2: Chat room exists: $exists');
-
-      if (exists) {
-        debugPrint('Step 2: Returning existing chat room ID: $chatRoomId');
-        return chatRoomId;
-      }
-
       // Step 3: Prepare Chat Room Data
       debugPrint('Step 3: Preparing chat room data...');
       var chatRoomData = {
@@ -57,6 +43,7 @@ class ChatRoomService {
         'pinChat': false,
         'description': description,
         'lastMessageType': '',
+        'isTyping${LocalService.userId}': false,
         'unReadMessagesCount': {},
       };
 
@@ -508,20 +495,20 @@ class ChatRoomService {
     return false;
   }
 
-  static Future<void> setActiveChatId(String otherUserId) async {
-    try {
-      // Reference to the user's document
-      DocumentReference userDoc = FirebaseFirestore.instance
-          .collection('users')
-          .doc(LocalService.userId);
+  // static Future<void> setActiveChatId(String otherUserId) async {
+  //   try {
+  //     // Reference to the user's document
+  //     DocumentReference userDoc = FirebaseFirestore.instance
+  //         .collection('users')
+  //         .doc(LocalService.userId);
 
-      // Update the activeChatId field
-      await userDoc.set({'activeChatId': otherUserId}, SetOptions(merge: true));
+  //     // Update the activeChatId field
+  //     await userDoc.set({'activeChatId': otherUserId}, SetOptions(merge: true));
 
-      debugPrint("Active chat ID updated successfully!");
-    } catch (e) {
-      // Log any errors
-      debugPrint("Error setting activeChatId: $e");
-    }
-  }
+  //     debugPrint("Active chat ID updated successfully!");
+  //   } catch (e) {
+  //     // Log any errors
+  //     debugPrint("Error setting activeChatId: $e");
+  //   }
+  // }
 }

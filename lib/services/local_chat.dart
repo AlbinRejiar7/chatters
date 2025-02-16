@@ -9,15 +9,17 @@ class ChatStorageService {
   static GetStorage get boxStorage => GetStorage();
 
   /// Save last seen message timestamp for a chat room
-  static Future<void> setLastSeenTimestamp(
+  static Future<void> setupdatedMessageTimestamp(
       String chatRoomId, Timestamp timestamp) async {
-    boxStorage.write('lastSeen_$chatRoomId', timestamp.seconds);
+    await boxStorage.write(
+        'updatedMessage$chatRoomId', timestamp.seconds); // Ensure `await`
   }
 
   /// Retrieve the last seen timestamp; default to 0 if not found
-  static Future<Timestamp> getLastSeenTimestamp(String chatRoomId) async {
-    final seconds = boxStorage.read('lastSeen_$chatRoomId') ?? 0;
-    return Timestamp(seconds, 0);
+  static Future<Timestamp> getupdatedMessageTimestamp(String chatRoomId) async {
+    final seconds = boxStorage.read('updatedMessage$chatRoomId') ?? 0;
+    return Timestamp(
+        seconds, 0); // No need to use `await` since Timestamp is synchronous
   }
 
   /// Retrieves a single message by `messageId` from local storage.
@@ -122,8 +124,8 @@ class ChatStorageService {
     }
   }
 
-  static Future<void> addMultipleMessages(
-      String chatRoomId, List<ChatModel> messages) async {
+  static Future<void> updateMessagesById(
+      String chatRoomId, List<ChatModel> modifiedMessages) async {
     try {
       final box = HiveBoxManager.chatBox;
 
@@ -131,29 +133,32 @@ class ChatStorageService {
       final existingMessages = box!.get(chatRoomId, defaultValue: <dynamic>[]);
 
       // Convert existing messages to a list of ChatModel objects
-      final updatedMessages = List<ChatModel>.from(
+      List<ChatModel> updatedMessages = List<ChatModel>.from(
         existingMessages?.map((e) => e) ?? [],
       );
 
-      // Filter out messages that are already present
-      List<ChatModel> newMessages = messages.where((message) {
-        return !updatedMessages
-            .any((existingMessage) => existingMessage.id == message.id);
-      }).toList();
+      // Map existing messages by their ID for fast lookup
+      Map<String, ChatModel> messageMap = {
+        for (var message in updatedMessages) message.id!: message
+      };
 
-      if (newMessages.isNotEmpty) {
-        // Add new messages at the beginning to maintain order
-        updatedMessages.insertAll(0, newMessages);
-
-        // Save the updated list to Hive storage
-        await box.put(chatRoomId, updatedMessages);
-
-        log("${newMessages.length} new messages added for chatRoomId '$chatRoomId'.");
-      } else {
-        log("No new messages to add for chatRoomId '$chatRoomId'.");
+      // Update messages based on modifiedMessages
+      for (var modifiedMessage in modifiedMessages) {
+        if (messageMap.containsKey(modifiedMessage.id)) {
+          // Update the existing message
+          messageMap[modifiedMessage.id!] = modifiedMessage;
+        } else {
+          // If the message doesn't exist, add it
+          updatedMessages.add(modifiedMessage);
+        }
       }
+
+      // Save the updated list back to Hive storage
+      await box.put(chatRoomId, messageMap.values.toList());
+
+      log("${modifiedMessages.length} messages updated for chatRoomId '$chatRoomId'.");
     } catch (e, stacktrace) {
-      log("Error in addMultipleMessages: $e");
+      log("Error in updateMessagesById: $e");
       log("Stacktrace: $stacktrace");
     }
   }
@@ -248,48 +253,59 @@ class ChatStorageService {
       log("Stacktrace: $stacktrace");
     }
   }
-/// Stores unsent messages locally to retry sending later.
-static Future<void> storeUnsentMessage(String chatRoomId, ChatModel message) async {
-  try {
-    final box = HiveBoxManager.chatBox;
-    final unsentMessages = box!.get('unsent_$chatRoomId', defaultValue: <dynamic>[]) ?? [];
-    final updatedUnsentMessages = List<ChatModel>.from(unsentMessages)..add(message);
 
-    await box.put('unsent_$chatRoomId', updatedUnsentMessages);
-    log("📌 Unsent message stored for chatRoomId '$chatRoomId'.");
-  } catch (e, stacktrace) {
-    log("❌ Error in storeUnsentMessage: $e");
-    log("Stacktrace: $stacktrace");
+  /// Stores unsent messages locally to retry sending later.
+  static Future<void> storeUnsentMessage(
+      String chatRoomId, ChatModel message) async {
+    try {
+      final box = HiveBoxManager.chatBox;
+      final unsentMessages =
+          box!.get('unsent_$chatRoomId', defaultValue: <dynamic>[]) ?? [];
+      final updatedUnsentMessages = List<ChatModel>.from(unsentMessages)
+        ..add(message);
+
+      await box.put('unsent_$chatRoomId', updatedUnsentMessages);
+      log("📌 Unsent message stored for chatRoomId '$chatRoomId'.");
+    } catch (e, stacktrace) {
+      log("❌ Error in storeUnsentMessage: $e");
+      log("Stacktrace: $stacktrace");
+    }
   }
-}
 
-/// Retrieves unsent messages for a specific chat room.
-static Future<List<ChatModel>> getUnsentMessages(String chatRoomId) async {
-  try {
-    final box = HiveBoxManager.chatBox;
-    final unsentMessages = box!.get('unsent_$chatRoomId', defaultValue: <dynamic>[]) ?? [];
-    return unsentMessages.whereType<ChatModel>().toList();
-  } catch (e, stacktrace) {
-    log("❌ Error in getUnsentMessages: $e");
-    log("Stacktrace: $stacktrace");
-    return [];
+  /// Retrieves unsent messages for a specific chat room.
+  static Future<List<ChatModel>> getUnsentMessages(String chatRoomId) async {
+    try {
+      final box = HiveBoxManager.chatBox;
+      final unsentMessages =
+          box!.get('unsent_$chatRoomId', defaultValue: <dynamic>[]) ?? [];
+      return unsentMessages.whereType<ChatModel>().toList();
+    } catch (e, stacktrace) {
+      log("❌ Error in getUnsentMessages: $e");
+      log("Stacktrace: $stacktrace");
+      return [];
+    }
   }
-}
 
-/// Removes an unsent message after it's successfully sent.
-static Future<void> removeUnsentMessage(String chatRoomId, String messageId) async {
-  try {
-    final box = HiveBoxManager.chatBox;
-    final unsentMessages = box!.get('unsent_$chatRoomId', defaultValue: <dynamic>[]) ?? [];
-    final updatedMessages = unsentMessages.whereType<ChatModel>().where((msg) => msg.id != messageId).toList();
+  /// Removes an unsent message after it's successfully sent.
+  static Future<void> removeUnsentMessage(
+      String chatRoomId, String messageId) async {
+    try {
+      final box = HiveBoxManager.chatBox;
+      final unsentMessages =
+          box!.get('unsent_$chatRoomId', defaultValue: <dynamic>[]) ?? [];
+      final updatedMessages = unsentMessages
+          .whereType<ChatModel>()
+          .where((msg) => msg.id != messageId)
+          .toList();
 
-    await box.put('unsent_$chatRoomId', updatedMessages);
-    log("✅ Unsent message removed for chatRoomId '$chatRoomId'.");
-  } catch (e, stacktrace) {
-    log("❌ Error in removeUnsentMessage: $e");
-    log("Stacktrace: $stacktrace");
+      await box.put('unsent_$chatRoomId', updatedMessages);
+      log("✅ Unsent message removed for chatRoomId '$chatRoomId'.");
+    } catch (e, stacktrace) {
+      log("❌ Error in removeUnsentMessage: $e");
+      log("Stacktrace: $stacktrace");
+    }
   }
-}
+
   static Future<void> updateMessage(
       String chatRoomId, ChatModel updatedMessage) async {
     try {

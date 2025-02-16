@@ -1,21 +1,33 @@
 import 'dart:math';
 
-import 'package:chatter/view/chat/widgets/plus_icon.dart';
+import 'package:chatter/view/chat/widgets/plus_icon.dart' show MicDeleteButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-class PositionedTransitionExample extends StatefulWidget {
-  const PositionedTransitionExample({super.key});
+class MicAnimationWidget extends StatefulWidget {
+  final VoidCallback? onLongPressStart;
+  final VoidCallback? onLongPressRelease;
+  final VoidCallback? onSlideToCancel;
+  final bool isMic;
+  final VoidCallback? onSendTap;
+
+  const MicAnimationWidget({
+    super.key,
+    this.onLongPressStart,
+    this.onLongPressRelease,
+    this.onSlideToCancel,
+    this.isMic = true,
+    this.onSendTap,
+  });
 
   @override
-  State<PositionedTransitionExample> createState() =>
-      _PositionedTransitionExampleState();
+  State<MicAnimationWidget> createState() => _MicAnimationWidgetState();
 }
 
-class _PositionedTransitionExampleState
-    extends State<PositionedTransitionExample> with TickerProviderStateMixin {
+class _MicAnimationWidgetState extends State<MicAnimationWidget>
+    with TickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
-    duration: const Duration(milliseconds: 400),
+    duration: const Duration(milliseconds: 300),
     vsync: this,
   );
 
@@ -23,15 +35,14 @@ class _PositionedTransitionExampleState
     parent: _controller,
     curve: Curves.elasticInOut,
   );
-
+  bool longpressHappend = false;
   bool _isLongPressTriggered = false;
-  late Ticker? _ticker; // ✅ Changed from `late Ticker` to `late Ticker?`
+  late Ticker? _ticker;
   bool _isWobbling = false;
   double _micPositionX = 0.0;
   bool _isCancelled = false;
   double _startPosition = 0.0;
-
-  final double _dragThreshold = 100.0;
+  final double _dragThreshold = 150.0;
 
   @override
   void initState() {
@@ -43,12 +54,16 @@ class _PositionedTransitionExampleState
   }
 
   void _startLongPress() {
+    if (!widget.isMic) return;
     _isLongPressTriggered = false;
-    Future.delayed(const Duration(milliseconds: 300), () {
+    widget.onLongPressStart?.call();
+    Future.delayed(const Duration(milliseconds: 200), () {
       if (mounted && !_isLongPressTriggered) {
         _controller.forward();
         _isLongPressTriggered = true;
+
         _startWobble();
+        setState(() {});
       }
     });
   }
@@ -63,16 +78,17 @@ class _PositionedTransitionExampleState
       _micPositionX = 0;
       _isCancelled = false;
     });
+    widget.onLongPressRelease?.call();
   }
 
   void _startWobble() {
     _isWobbling = true;
-    _ticker?.start(); // ✅ Safe start without errors
+    _ticker?.start();
   }
 
   void _stopWobble() {
     _isWobbling = false;
-    _ticker?.stop(); // ✅ Safe stop (avoids error)
+    _ticker?.stop();
     _controller.reverse();
   }
 
@@ -85,20 +101,30 @@ class _PositionedTransitionExampleState
 
     if (dragDistance < 0) {
       setState(() {
-        _micPositionX = dragDistance.abs(); // Move mic left
+        _micPositionX = dragDistance.abs();
+        if (_micPositionX > _dragThreshold / 2) {
+          _isCancelled = true;
+        }
       });
 
-      if (_micPositionX > _dragThreshold) {
-        setState(() {
-          _isCancelled = true;
-        });
+      if (_micPositionX > _dragThreshold &&
+          details.globalPosition.dx < MediaQuery.of(context).size.width / 2) {
+        if (!_isCancelled) {
+          setState(() {
+            _isCancelled = true;
+          });
+          print("onslide cacel called----------");
+          widget.onSlideToCancel?.call(); // Call slide cancel function
+          Future.delayed(const Duration(milliseconds: 100), _resetMicPosition);
+        }
       }
     }
   }
 
   void _onDragEnd(DragEndDetails details) {
+    widget.onSlideToCancel?.call();
     if (_isCancelled) {
-      _cancelLongPress();
+      _resetMicPosition(); // Reset position without calling onLongPressRelease
     } else {
       setState(() {
         _micPositionX = 0;
@@ -106,38 +132,38 @@ class _PositionedTransitionExampleState
     }
   }
 
+  void _resetMicPosition() {
+    _controller.reverse();
+    _stopWobble();
+    setState(() {
+      _micPositionX = 0;
+      _isCancelled = false;
+    });
+  }
+
   @override
   void dispose() {
     _controller.dispose();
-    _ticker?.dispose(); // ✅ Safe disposal (avoids error)
+    _ticker?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onHorizontalDragStart: _onDragStart,
-      onHorizontalDragUpdate: _onDragUpdate,
-      onHorizontalDragEnd: _onDragEnd,
+      onHorizontalDragStart: _isLongPressTriggered ? _onDragStart : null,
+      onHorizontalDragUpdate: _isLongPressTriggered ? _onDragUpdate : null,
+      onHorizontalDragEnd: _isLongPressTriggered ? _onDragEnd : null,
       onTapDown: (_) => _startLongPress(),
       onTapUp: (_) => _cancelLongPress(),
       onTapCancel: () => _cancelLongPress(),
       child: Stack(
-        clipBehavior: Clip.none, // ✅ Ensures no clipping
+        clipBehavior: Clip.none,
         alignment: Alignment.centerLeft,
         children: [
-          if (_isLongPressTriggered)
-            Text(
-              "<< Slide to cancel",
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-
-          // ✅ Use Align with FractionalTranslation for smooth positioning
           Align(
-            alignment: Alignment(0.5, 0), // ✅ Start mic from the right
             child: FractionalTranslation(
-              translation: Offset(
-                  -_micPositionX / 100, 0), // ✅ Move mic left dynamically
+              translation: Offset(-_micPositionX / 100, 0),
               child: AnimatedBuilder(
                 animation: _animation,
                 builder: (context, child) {
@@ -149,11 +175,15 @@ class _PositionedTransitionExampleState
                     angle: rotation,
                     child: Opacity(
                       opacity: _isCancelled ? 0.5 : 1,
-                      child: SizedBox(
-                        width: width,
-                        height: height,
-                        child: SendMicButton(
-                          isSend: false,
+                      child: GestureDetector(
+                        onTap: widget.isMic ? null : widget.onSendTap,
+                        child: SizedBox(
+                          width: width,
+                          height: height,
+                          child: MicDeleteButton(
+                            isSend: !widget.isMic,
+                            isDelete: _isCancelled,
+                          ),
                         ),
                       ),
                     ),
@@ -169,16 +199,16 @@ class _PositionedTransitionExampleState
 }
 
 // //can be used to reply widget
-// class PositionedTransitionExample extends StatefulWidget {
-//   const PositionedTransitionExample({super.key});
+// class MicAnimationWidget extends StatefulWidget {
+//   const MicAnimationWidget({super.key});
 
 //   @override
-//   State<PositionedTransitionExample> createState() =>
-//       _PositionedTransitionExampleState();
+//   State<MicAnimationWidget> createState() =>
+//       _MicAnimationWidgetState();
 // }
 
-// class _PositionedTransitionExampleState
-//     extends State<PositionedTransitionExample> with TickerProviderStateMixin {
+// class _MicAnimationWidgetState
+//     extends State<MicAnimationWidget> with TickerProviderStateMixin {
 //   late final AnimationController _controller = AnimationController(
 //     duration: const Duration(milliseconds: 400),
 //     vsync: this,

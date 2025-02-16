@@ -1,24 +1,29 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/controller/chat.dart';
+import 'package:chatter/controller/record_audio.dart';
 import 'package:chatter/controller/user_online.dart';
 import 'package:chatter/model/chat.dart';
 import 'package:chatter/services/chat_service.dart';
+import 'package:chatter/services/firebase_storage.dart';
 import 'package:chatter/services/local_service.dart';
 import 'package:chatter/utils/format_time.dart';
 import 'package:chatter/utils/is_only_emoji.dart';
+import 'package:chatter/utils/seconds.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
 import 'package:chatter/view/chat/widgets/delete.dart';
 import 'package:chatter/view/chat/widgets/otheruserbubble.dart';
-import 'package:chatter/view/chat/widgets/plus_icon.dart';
+import 'package:chatter/view/chat/widgets/test.dart';
 import 'package:chatter/widgets/chat_app_bar.dart';
 import 'package:chatter/widgets/typing_indicator.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import 'widgets/voice_bubble.dart';
 
 class ChatPage extends StatelessWidget {
   final String image;
@@ -26,25 +31,26 @@ class ChatPage extends StatelessWidget {
   final String receiverId;
   final int unreadCount;
   final List<ChatModel> lastMessages;
-  const ChatPage(
+  ChatPage(
       {super.key,
       required this.name,
       required this.receiverId,
       required this.unreadCount,
       required this.lastMessages,
       required this.image});
-
+  var audioRecorderCtr = Get.put(RecordAudioController());
   @override
   Widget build(BuildContext context) {
     final chatRoomId = ChatRoomService.getConversationID(receiverId);
-    final ctr = Get.put(ChatPageController(
+    final ChatPageController ctr = Get.put(ChatPageController(
       receiverId,
       unreadCount,
       lastMessages,
       chatRoomId: chatRoomId,
     ));
-    var userStatusCtr =
+    UserOnlineStatusController userStatusCtr =
         Get.put(UserOnlineStatusController(otherUserId: receiverId));
+
     return Scaffold(
       extendBody: true,
       extendBodyBehindAppBar: true,
@@ -77,7 +83,6 @@ class ChatPage extends StatelessWidget {
                         ),
                       )
                     : ListView.builder(
-                        key: ctr.listKey,
                         reverse: true,
                         itemCount: ctr.sampleChats.length +
                             (userStatusCtr.isTyping.value
@@ -125,39 +130,22 @@ class ChatPage extends StatelessWidget {
                           return Column(
                             children: [
                               GetBuilder<ChatPageController>(builder: (__) {
-                                return chat.messageType == MessageType.image
-                                    ? Row(
-                                        mainAxisAlignment:
-                                            (chat.isSentByMe ?? false)
-                                                ? MainAxisAlignment.end
-                                                : MainAxisAlignment.start,
-                                        children: [
-                                          chat.isSend ?? false
-                                              ? Image.network(
-                                                  chat.mediaUrl ?? "",
-                                                  height: 200,
-                                                )
-                                              : const CupertinoActivityIndicator(
-                                                  radius: 50,
-                                                  color: AppColors.primaryColor,
-                                                ),
-                                        ],
-                                      )
-                                    : GestureDetector(
-                                        onLongPress: () {
-                                          showDeleteMessageDialog(context,
-                                              chatRoomId, chat.id ?? '');
-                                        },
-                                        child: SizedBox(
-                                          width: context.width,
-                                          child: TextMessageBubble(
-                                            chatRoomId: chatRoomId,
-                                            chat: chat,
-                                            previous: previous,
-                                            next: next,
-                                          ),
-                                        ),
-                                      );
+                                return GestureDetector(
+                                  onLongPress: () {
+                                    showDeleteMessageDialog(
+                                        context, chatRoomId, chat.id ?? '');
+                                  },
+                                  child: SizedBox(
+                                    width: context.width,
+                                    child: MessageBubble(
+                                      entity: chat.messageType?.name ?? "",
+                                      chatRoomId: chatRoomId,
+                                      chat: chat,
+                                      previous: previous,
+                                      next: next,
+                                    ),
+                                  ),
+                                );
                               }),
                             ],
                           );
@@ -165,20 +153,48 @@ class ChatPage extends StatelessWidget {
                       ),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.all(4.w),
-              child: Row(
-                children: [
-                  SendTextField(ctr: ctr),
-                  kWidth((5.w)),
-                  SendMicButton(
-                    isSend: true,
-                    onTap: () {
-                      ctr.sendMessage();
+            Row(
+              children: [
+                Obx(() {
+                  return SendTextField(
+                    ctr: ctr,
+                    hintText: audioRecorderCtr.isRecording.value
+                        ? formatDuration(
+                            audioRecorderCtr.recordingDuration.value)
+                        : "message",
+                  );
+                }),
+                kWidth((5.w)),
+                Obx(() {
+                  return MicAnimationWidget(
+                    isMic: !ctr.isCurrentlyTyping.value,
+                    onLongPressStart: () async {
+                      await audioRecorderCtr.toggleRecording();
                     },
-                  ),
-                ],
-              ),
+                    onSendTap: () {
+                      // ctr.sendMessage(messageType: MessageType.text);
+                    },
+                    onLongPressRelease: () async {
+                      await audioRecorderCtr.toggleRecording();
+                      if (audioRecorderCtr.isRecording.value == false) {
+                        if (audioRecorderCtr.filePath.value.isNotEmpty) {
+                          var mediaUrl =
+                              await FirebaseStorageSerivce.uploadUserAudio(
+                                  phoneNumber: LocalService.userId ?? "",
+                                  audioFile:
+                                      File(audioRecorderCtr.filePath.value));
+                          ctr.sendMessage(
+                              messageType: MessageType.audio,
+                              mediaUrl: mediaUrl);
+                        }
+                      }
+                    },
+                    onSlideToCancel: () {
+                      print("Mic slid to the far left - Recording cancelled");
+                    },
+                  );
+                }),
+              ],
             ),
           ],
         ),
@@ -191,10 +207,11 @@ class SendTextField extends StatelessWidget {
   const SendTextField({
     super.key,
     required this.ctr,
+    this.hintText,
   });
 
   final ChatPageController ctr;
-
+  final String? hintText;
   @override
   Widget build(BuildContext context) {
     return Expanded(
@@ -219,10 +236,10 @@ class SendTextField extends StatelessWidget {
                 bool isTypingNow = value.isNotEmpty;
 
                 // Update only if the typing state has changed
-                if (isTypingNow != ctr.isCurrentlyTyping) {
-                  ctr.isCurrentlyTyping = isTypingNow;
+                if (isTypingNow != ctr.isCurrentlyTyping.value) {
+                  ctr.isCurrentlyTyping.value = isTypingNow;
                   ChatRoomService.updateIsTyping(
-                      isTyping: ctr.isCurrentlyTyping,
+                      isTyping: ctr.isCurrentlyTyping.value,
                       chatroomId: ctr.chatRoomId);
                 }
 
@@ -236,7 +253,7 @@ class SendTextField extends StatelessWidget {
 
                 // If user stops typing, wait 1 second before marking as not typing
                 ctr.typingTimer = Timer(const Duration(seconds: 1), () {
-                  if (!ctr.isCurrentlyTyping) {
+                  if (!ctr.isCurrentlyTyping.value) {
                     ChatRoomService.updateIsTyping(
                         isTyping: false, chatroomId: ctr.chatRoomId);
                   }
@@ -249,7 +266,7 @@ class SendTextField extends StatelessWidget {
                     ?.copyWith(fontWeight: FontWeight.normal),
                 isDense: true,
                 contentPadding: const EdgeInsets.all(0),
-                hintText: "message",
+                hintText: hintText,
                 border: InputBorder.none,
               ),
             )
@@ -260,17 +277,19 @@ class SendTextField extends StatelessWidget {
   }
 }
 
-class TextMessageBubble extends StatelessWidget {
+class MessageBubble extends StatelessWidget {
   final ChatModel chat;
   final ChatModel? previous;
   final ChatModel? next;
   final String chatRoomId;
-  const TextMessageBubble({
+  final String entity;
+  const MessageBubble({
     super.key,
     required this.chat,
     required this.previous,
     required this.next,
     required this.chatRoomId,
+    required this.entity,
   });
 
   @override
@@ -281,8 +300,9 @@ class TextMessageBubble extends StatelessWidget {
           : CrossAxisAlignment.start,
       children: [
         chat.isSentByMe ?? false
-            ? buildSenderBubble(context, chat)
+            ? buildSenderBubble(context, chat, entity)
             : Otheruserbubble(
+                entity: entity,
                 chat: chat,
                 previous: previous,
                 next: next,
@@ -293,7 +313,8 @@ class TextMessageBubble extends StatelessWidget {
   }
 
   /// Builds the bubble for messages sent by the user.
-  Widget buildSenderBubble(BuildContext context, ChatModel chat) {
+  Widget buildSenderBubble(
+      BuildContext context, ChatModel chat, String entity) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       margin: EdgeInsets.only(
@@ -322,13 +343,18 @@ class TextMessageBubble extends StatelessWidget {
         alignment: WrapAlignment.end,
         crossAxisAlignment: WrapCrossAlignment.end,
         children: [
-          Text(
-            chat.message ?? '',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: isOnlyEmojis(chat.message ?? '') ? 25.sp : 14.sp,
+          if (entity == MessageType.text.name)
+            Text(
+              chat.message ?? '',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isOnlyEmojis(chat.message ?? '') ? 25.sp : 14.sp,
+              ),
             ),
-          ),
+          if (entity == MessageType.audio.name)
+            VoiceBubble(
+              downloadUrl: chat.message!,
+            ),
           kWidth(context.width * 0.02),
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.end,

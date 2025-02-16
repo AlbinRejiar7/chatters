@@ -1,0 +1,1 @@
+C:\Users\albin\Documents\my_projects\flutter-chatter\chatter\build\app\intermediates\cxx\RelWithDebInfo\1eip5e1q\obj\armeabi-v7a

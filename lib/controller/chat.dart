@@ -16,7 +16,7 @@ import 'package:uuid/uuid.dart';
 class ChatPageController extends GetxController {
   Timer? _debounce;
   Timer? typingTimer;
-  bool isCurrentlyTyping = false;
+  var isCurrentlyTyping = false.obs;
   final String chatRoomId;
   final String receiverId;
   final int unReadCount;
@@ -149,53 +149,117 @@ class ChatPageController extends GetxController {
   //   }
   // }
 
-  // void listenToLastMessageFromOtherUser(
-  //     String chatRoomId, String currentUserId) {
-  //   FirebaseFireStoreServices.firestore
-  //       .collection('chatRooms')
-  //       .doc(chatRoomId)
-  //       .collection('messages')
-  //       .where('senderId',
-  //           isNotEqualTo: currentUserId) // Filter messages from other users
-  //       .orderBy('senderId') // Required when using 'where' with inequality
-  //       .orderBy('createdAt', descending: true) // Order by timestamp
-  //       .limit(1) // Fetch only the latest message
-  //       .snapshots()
-  //       .listen((QuerySnapshot snapshot) async {
-  //     if (snapshot.docs.isNotEmpty) {
-  //       if (snapshot.docs.isEmpty) {
-  //         log("No messages from other users in this chat room.");
-  //         return;
-  //       }
+  late Timestamp lastFetchedTime; // Store last fetch time globally
 
-  //       final doc = snapshot.docs.first;
-  //       final data = doc.data() as Map<String, dynamic>?;
+  void listenToModifiedMessages() async {
+    FirebaseFirestore.instance
+        .collection('chatRooms')
+        .doc(chatRoomId)
+        .collection('messages')
+        .where('lastUpdated', isGreaterThan: lastFetchedTime)
+        .snapshots()
+        .listen((QuerySnapshot snapshot) {
+      if (snapshot.docs.isEmpty) return;
 
-  //       if (data == null || !data.containsKey('createdAt')) {
-  //         log("Invalid message data received: $data");
-  //         return;
-  //       }
+      // Update last fetch time to prevent duplicate fetches
+      lastFetchedTime = Timestamp.now();
 
-  //       final newMessage = ChatModel.fromJson(data);
+      // Convert documents to ChatModel list
+      List<ChatModel> modifiedMessages = snapshot.docs
+          .map((doc) => ChatModel.fromJson(doc.data() as Map<String, dynamic>))
+          .toList();
 
-  //       // Check if message ID already exists in the list
-  //       final isMessageAlreadyAdded = sampleChats.any(
-  //         (chat) => chat.id == newMessage.id,
-  //       );
+      // Handle the modified messages (update UI, store locally, etc.)
+      handleModifiedMessages(
+        modifiedMessages,
+      );
+    });
+    await ChatStorageService.setupdatedMessageTimestamp(
+        chatRoomId, lastFetchedTime);
+  }
 
-  //       if (!isMessageAlreadyAdded) {
-  //         // Add to the list and maintain order by createdAt
-  //         sampleChats.insert(0, newMessage);
-  //         await ChatStorageService.addMessage(chatRoomId, newMessage);
-  //         // sampleChats.refresh(); // Notify listeners of the updated list
-  //         log("Latest message from other user added");
-  //       } else {
-  //         log("Message already exists in the list, skipping addition");
-  //       }
-  //     }
-  //   });
-  // }
+  Future<void> handleModifiedMessages(
+    List<ChatModel> messages,
+  ) async {
+    List<ChatModel> newMessages = [];
 
+    for (var message in messages) {
+      final index = sampleChats.indexWhere((msg) => msg.id == message.id);
+
+      if (index != -1) {
+        sampleChats[index] = message; // Update existing message
+      } else {
+        sampleChats.add(message); // Add new message
+        newMessages.add(message); // Collect new messages for storage
+      }
+    }
+
+    sampleChats.refresh(); // Refresh observable list if using GetX
+
+    // Store modified messages in local storage
+    if (newMessages.isNotEmpty) {
+      await ChatStorageService.updateMessagesById(chatRoomId, messages);
+    }
+  }
+
+  void listenToLastMessageFromOtherUser(
+      String chatRoomId, String currentUserId) async {
+    final localMessages = await ChatStorageService.getMessages(chatRoomId);
+    final deletedMessageIds = localMessages
+        .where((msg) => msg.isDeleted == true)
+        .map((msg) => msg.id ?? "")
+        .toSet();
+
+    FirebaseFireStoreServices.firestore
+        .collection('chatRooms')
+        .doc(chatRoomId)
+        .collection('messages')
+        .where('senderId',
+            isNotEqualTo: currentUserId) // Filter messages from other users
+        .orderBy('senderId') // Required when using 'where' with inequality
+        .orderBy('createdAt', descending: true) // Order by timestamp
+        .limit(1) // Fetch only the latest message
+        .snapshots()
+        .listen((QuerySnapshot snapshot) async {
+      if (snapshot.docs.isEmpty) return;
+
+      List<ChatModel> newMessages = [];
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>?;
+
+        if (data == null || !data.containsKey('createdAt')) continue;
+
+        final newMessage = ChatModel.fromJson(data);
+
+        // Skip deleted messages
+        if (deletedMessageIds.contains(newMessage.id)) continue;
+
+        final existingMessageIndex =
+            sampleChats.indexWhere((chat) => chat.id == newMessage.id);
+
+        if (existingMessageIndex != -1) {
+          // Update existing message
+          sampleChats[existingMessageIndex] = newMessage;
+        } else {
+          // Collect new messages
+          newMessages.add(newMessage);
+
+          await audioService.playIncomingSoundSound();
+        }
+      }
+
+      if (newMessages.isNotEmpty) {
+        sampleChats.insertAll(0, newMessages);
+        sampleChats.refresh();
+
+        // Batch update local storage with new messages
+        await ChatStorageService.addMessages(chatRoomId, newMessages);
+      }
+    });
+  }
+
+// main fun
   void listenToMessages(String chatRoomId) async {
     // Fetch all locally deleted message IDs once
     final localMessages = await ChatStorageService.getMessages(chatRoomId);
@@ -250,6 +314,9 @@ class ChatPageController extends GetxController {
   }
 
   Future<void> loadInitialMessages(String chatRoomId) async {
+    // lastFetchedTime =
+    //     await ChatStorageService.getupdatedMessageTimestamp(chatRoomId);
+    // listenToModifiedMessages();
     var messages = await ChatStorageService.getMessages(chatRoomId);
 
     // Assign non-deleted messages directly
@@ -260,6 +327,7 @@ class ChatPageController extends GetxController {
     }
 
     listenToMessages(chatRoomId);
+    // listenToLastMessageFromOtherUser(chatRoomId, LocalService.userId ?? "");
   }
 
   // void listenToMessages(String chatRoomId) {
@@ -359,29 +427,30 @@ class ChatPageController extends GetxController {
     sampleChats.refresh();
   }
 
-  void sendMessage() async {
-    log("sendMessage tapped");
-
+  void sendMessage({required MessageType messageType, String? mediaUrl}) async {
+    log("sendMessage tapped ${mediaUrl}");
+    messageController.text = mediaUrl ?? "";
     if (messageController.text.trim().isEmpty) return;
     if (_debounce?.isActive ?? false) _debounce?.cancel();
 
     var message = ChatModel(
-      id: const Uuid().v4(),
-      senderId: LocalService.userId,
-      senderName: LocalService.userName,
-      message: messageController.text.trim(),
-      timestamp: DateTime.now(),
-      isSentByMe: true,
-      isRead: null,
-      isSend: false,
-      mediaUrl: "",
-      messageType: MessageType.text,
-      receiverId: receiverId,
-    );
+        id: const Uuid().v4(),
+        senderId: LocalService.userId,
+        senderName: LocalService.userName,
+        message: messageController.text.trim(),
+        timestamp: DateTime.now(),
+        isSentByMe: true,
+        isRead: null,
+        createdAt: DateTime.now(),
+        isSend: false,
+        mediaUrl: mediaUrl,
+        messageType: messageType,
+        receiverId: receiverId,
+        lastUpdated: DateTime.now());
 
     sampleChats.insert(0, message);
     messageController.clear();
-
+    isCurrentlyTyping.value = false;
     _debounce = Timer(const Duration(milliseconds: 100), () async {
       var isConnected = (Get.find<ConnectivityController>().isConnected.value);
       if (!isConnected) {
@@ -401,7 +470,8 @@ class ChatPageController extends GetxController {
       audioService.playOutGoingSoundSound();
       await ChatRoomService.updateIsTyping(
           isTyping: false, chatroomId: chatRoomId);
-      if (sampleChats.isEmpty) {
+      log("${sampleChats.isEmpty}-----------------------");
+      if (sampleChats.length == 1) {
         await ChatRoomService.createChatRoomWithFirstMessage(
           message: message,
           receiverId: message.receiverId!,
@@ -532,7 +602,7 @@ class ChatPageController extends GetxController {
     super.onClose();
     messageController.dispose();
     _debounce?.cancel();
-    await ChatRoomService.setActiveChatId("");
+
     audioService.dispose();
   }
 
@@ -824,7 +894,7 @@ class ChatPageController extends GetxController {
   @override
   void onInit() async {
     super.onInit();
-    // chatBox = await Hive.openBox<ChatModel>('chatMessages');
+    // chatBox = await Hive.openBox<ChatModel>('sampleChats');
 
     // sampleChats.value = await loadMessagesFromHive();
 

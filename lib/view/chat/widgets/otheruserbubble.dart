@@ -5,6 +5,7 @@ import 'package:chatter/utils/format_time.dart';
 import 'package:chatter/utils/is_only_emoji.dart';
 import 'package:chatter/utils/sizedboxwidget.dart';
 import 'package:chatter/view/chat/chat.dart';
+import 'package:chatter/view/chat/widgets/voice_bubble.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -15,12 +16,14 @@ class Otheruserbubble extends StatelessWidget {
   final ChatModel? previous;
   final ChatModel? next;
   final String chatroomId;
+  final String entity;
   const Otheruserbubble(
       {super.key,
       required this.chat,
       required this.previous,
       required this.next,
-      required this.chatroomId});
+      required this.chatroomId,
+      required this.entity});
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +31,7 @@ class Otheruserbubble extends StatelessWidget {
     if (chat.isRead == null) {
       ctr.markMessageAsRead(chatroomId, chat.id ?? "");
     }
-    
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 7.h),
       margin: EdgeInsets.only(
@@ -57,13 +60,18 @@ class Otheruserbubble extends StatelessWidget {
         alignment: WrapAlignment.end,
         crossAxisAlignment: WrapCrossAlignment.end,
         children: [
-          Text(
-            chat.message ?? '',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: isOnlyEmojis(chat.message ?? '') ? 28.sp : 14.sp,
+          if (entity == MessageType.text.name)
+            Text(
+              chat.message ?? '',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: isOnlyEmojis(chat.message ?? '') ? 28.sp : 14.sp,
+              ),
             ),
-          ),
+          if (entity == MessageType.audio.name)
+            VoiceBubble(
+              downloadUrl: chat.message!,
+            ),
           kWidth(10.w),
           Text(
             formatTime(chat.timestamp),

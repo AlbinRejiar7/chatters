@@ -1,6 +1,9 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
 class FirebaseStorageSerivce {
   static FirebaseStorage get storage => FirebaseStorage.instance;
@@ -32,6 +35,39 @@ class FirebaseStorageSerivce {
     } catch (e) {
       print("Error uploading image: $e");
       rethrow;
+    }
+  }
+
+  static Future<String?> downloadFirebaseAudio(
+      String audioUrl, void Function(double progress) onProgress) async {
+    try {
+      // Get application documents directory
+      Directory appDocDir = await getApplicationDocumentsDirectory();
+      String savePath =
+          "${appDocDir.path}/${DateTime.now().millisecondsSinceEpoch}.mp3";
+
+      // Create Dio instance
+      Dio dio = Dio();
+
+      // Start downloading with progress tracking
+      Response response = await dio.download(
+        audioUrl,
+        savePath,
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            double progress = (received / total) * 100;
+            onProgress(progress); // Send progress update
+          }
+        },
+      );
+
+      debugPrint(
+          "Download response: ${response.statusCode} - ${response.statusMessage}");
+
+      return savePath;
+    } catch (e) {
+      debugPrint("Error downloading audio: $e");
+      return null;
     }
   }
 

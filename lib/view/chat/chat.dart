@@ -352,8 +352,9 @@ class MessageBubble extends StatelessWidget {
               ),
             ),
           if (entity == MessageType.audio.name)
-            VoiceBubble(
-              downloadUrl: chat.message!,
+            AudioBubble(
+              isBlackColor: false,
+              firebaseAudioPath: chat.message!,
             ),
           kWidth(context.width * 0.02),
           Wrap(

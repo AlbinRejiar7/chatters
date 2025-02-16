@@ -69,8 +69,9 @@ class Otheruserbubble extends StatelessWidget {
               ),
             ),
           if (entity == MessageType.audio.name)
-            VoiceBubble(
-              downloadUrl: chat.message!,
+            AudioBubble(
+              isBlackColor: true,
+              firebaseAudioPath: chat.message!,
             ),
           kWidth(10.w),
           Text(

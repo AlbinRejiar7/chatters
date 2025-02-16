@@ -1,206 +1,335 @@
-import 'dart:io';
-
+import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:chatter/constants/colors.dart';
-import 'package:chatter/utils/seconds.dart';
-import 'package:dio/dio.dart';
+import 'package:chatter/controller/new_audio_controller/audio_manager.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
-class VoiceBubble extends StatefulWidget {
-  final String downloadUrl;
-
-  const VoiceBubble({super.key, required this.downloadUrl});
-
-  @override
-  State<VoiceBubble> createState() => _VoiceBubbleState();
-}
-
-class _VoiceBubbleState extends State<VoiceBubble>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _animationController;
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  bool _isDownloading = false;
-  double _downloadProgress = 0.0;
-  String? _localFilePath;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-
-    _checkIfFileExists();
-    _audioPlayer.playerStateStream.listen((state) async {
-      if (state.processingState == ProcessingState.completed) {
-        _animationController.reverse();
-        await _audioPlayer.pause();
-        _audioPlayer.seek(Duration.zero); // Reset player position
-      }
-    });
-  }
-
-  /// Checks if the file is already downloaded and sets the player source.
-  Future<void> _checkIfFileExists() async {
-    final directory = Platform.isAndroid
-        ? await getExternalStorageDirectory()
-        : await getApplicationDocumentsDirectory();
-
-    final filePath = '${directory!.path}/downloaded_audio.mp3';
-    if (File(filePath).existsSync()) {
-      setState(() {
-        _localFilePath = filePath;
-      });
-      await _audioPlayer.setFilePath(filePath);
-    }
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  void _togglePlayPause() async {
-    if (_localFilePath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please download the audio first')),
-      );
-      return;
-    }
-
-    if (_audioPlayer.playing) {
-      _animationController.reverse();
-      await _audioPlayer.pause();
-    } else {
-      _animationController.forward();
-      await _audioPlayer.play();
-    }
-  }
-
-  Future<void> _downloadAudio() async {
-    if (_isDownloading) return;
-
-    setState(() {
-      _isDownloading = true;
-      _downloadProgress = 0.0;
-    });
-
-    if (await Permission.storage.request().isGranted) {
-      try {
-        final directory = Platform.isAndroid
-            ? await getExternalStorageDirectory()
-            : await getApplicationDocumentsDirectory();
-
-        final filePath = '${directory!.path}/downloaded_audio.mp3';
-
-        await Dio().download(
-          widget.downloadUrl,
-          filePath,
-          onReceiveProgress: (count, total) {
-            setState(() {
-              _downloadProgress = count / total;
-            });
-          },
-        );
-
-        setState(() {
-          _localFilePath = filePath;
-          _isDownloading = false;
-        });
-
-        await _audioPlayer.setFilePath(filePath);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Download complete: $filePath')),
-        );
-      } catch (e) {
-        setState(() {
-          _isDownloading = false;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Download failed: $e')),
-        );
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Storage permission denied')),
-      );
-
-      setState(() {
-        _isDownloading = false;
-      });
-    }
-  }
-
+class AudioBubble extends StatelessWidget {
+  final String firebaseAudioPath;
+  final bool isBlackColor;
+  const AudioBubble(
+      {super.key, required this.firebaseAudioPath, required this.isBlackColor});
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<Duration>(
-      stream: _audioPlayer.positionStream,
-      builder: (context, snapshot) {
-        final position = snapshot.data ?? Duration.zero;
-        final duration = _audioPlayer.duration ?? Duration.zero;
+    final AudioManager audioManager = Get.find<AudioManager>();
 
-        return Row(
-          children: [
-            IconButton(
-              color: AppColors.whiteColor,
-              onPressed: _togglePlayPause,
-              icon: AnimatedIcon(
-                icon: AnimatedIcons.play_pause,
-                progress: _animationController,
-              ),
-            ),
-            Flexible(
-              flex: 3,
-              child: Slider.adaptive(
-                inactiveColor: AppColors.whiteColor,
-                activeColor: AppColors.whiteColor,
-                min: 0,
-                max: duration.inSeconds.toDouble(),
-                value: position.inSeconds
-                    .toDouble()
-                    .clamp(0.0, duration.inSeconds.toDouble()),
-                onChanged: (value) =>
-                    _audioPlayer.seek(Duration(seconds: value.toInt())),
-              ),
-            ),
-            Flexible(
-                flex: 1,
-                child: Text(
-                  formatDuration(snapshot.data ?? duration),
-                  style: const TextStyle(color: AppColors.whiteColor),
-                )),
-            if (_localFilePath ==
-                null) // Hide download button if already downloaded
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  IconButton(
-                    icon:
-                        const Icon(Icons.download, color: AppColors.whiteColor),
-                    onPressed: _downloadAudio,
-                  ),
-                  if (_isDownloading)
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        value: _downloadProgress,
-                        strokeWidth: 2,
-                        color: AppColors.whiteColor,
+    audioManager.initializeAudio(firebaseAudioPath);
+
+    return VisibilityDetector(
+      key: Key(firebaseAudioPath),
+      onVisibilityChanged: (visibilityInfo) {
+        if (visibilityInfo.visibleFraction == 0) {
+          // Dispose when not visible
+          audioManager.audioStates[firebaseAudioPath]?.playerController
+              .dispose();
+          audioManager.audioStates.remove(firebaseAudioPath);
+        } else {
+          // Reinitialize when visible
+          if (!audioManager.audioStates.containsKey(firebaseAudioPath)) {
+            audioManager.initializeAudio(firebaseAudioPath);
+          }
+        }
+      },
+      child: Obx(() {
+        final audioState = audioManager.audioStates[firebaseAudioPath];
+
+        if (audioState == null) {
+          return const SizedBox(
+            width: 40,
+            height: 40,
+            child: CircularProgressIndicator(strokeWidth: 1.8),
+          );
+        }
+
+        return SizedBox(
+          height: 40,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              (audioState.localAudioPath == null)
+                  ? Text(
+                      "${audioState.downloadProgress.value.toInt()}%",
+                      style: TextStyle(
+                          color: isBlackColor
+                              ? AppColors.darkColor
+                              : AppColors.whiteColor),
+                    )
+                  : InkWell(
+                      onTap: () => audioManager.playPause(firebaseAudioPath),
+                      child: Icon(
+                        audioState.isPlaying.value
+                            ? Icons.pause_circle_outline
+                            : Icons.play_circle_outline,
+                        color:
+                            isBlackColor ? AppColors.darkColor : Colors.white,
                       ),
                     ),
-                ],
+              if (audioState.waveformData != null)
+                AudioFileWaveforms(
+                  padding: EdgeInsets.symmetric(vertical: 7.h),
+                  waveformData: audioState.waveformData!,
+                  waveformType: WaveformType.fitWidth,
+                  playerWaveStyle: PlayerWaveStyle(
+                    waveCap: StrokeCap.square,
+                    fixedWaveColor:
+                        isBlackColor ? Colors.blue.shade200 : Colors.white54,
+                    liveWaveColor:
+                        isBlackColor ? AppColors.primaryColor : Colors.white,
+                    waveThickness: 2,
+                    spacing: 6,
+                  ),
+                  playerController: audioState.playerController,
+                  size: const Size(150, 50),
+                )
+              else
+                SizedBox(
+                  width: 20.w, // Adjust the size as needed
+                  height: 20.w,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5, // Adjust the thickness
+                    color: isBlackColor
+                        ? AppColors.darkColor
+                        : Colors.white, // Customize the color
+                  ),
+                ),
+              Text(
+                audioState.currentPosition.value,
+                style: TextStyle(
+                    color: isBlackColor
+                        ? AppColors.darkColor
+                        : AppColors.whiteColor),
               ),
-          ],
+            ],
+          ),
         );
-      },
+      }),
     );
   }
 }
+
+// class AudioBubble extends StatefulWidget {
+//   final String firebaseAudioPath;
+
+//   const AudioBubble({super.key, required this.firebaseAudioPath});
+//   @override
+//   State<AudioBubble> createState() => _AudioBubbleState();
+// }
+
+// class _AudioBubbleState extends State<AudioBubble> {
+//   late PlayerController playerController;
+//   String currentPosition = "00:00";
+//   String audioMaxLength = "00:00";
+//   bool isPlaying = false;
+//   double downloadProgress = 0.0;
+//   String? localAudioPath;
+//   List<double>? waveformData;
+//   @override
+//   void initState() {
+//     super.initState();
+//     playerController = PlayerController();
+//     _initializeAudio();
+//   }
+
+//   Future<void> _initializeAudio() async {
+//     localAudioPath = storage.read(widget.firebaseAudioPath);
+
+//     if (localAudioPath == null) {
+//       localAudioPath = await SendAudioService.downloadFirebaseAudio(
+//         widget.firebaseAudioPath,
+//         (progress) {
+//           downloadProgress = progress;
+//           if (mounted) setState(() {});
+//         },
+//       );
+//       if (localAudioPath != null) {
+//         storage.write(widget.firebaseAudioPath, localAudioPath);
+//       }
+//     }
+
+//     if (localAudioPath != null) {
+//       // Extract waveform before initializing player
+//       await _loadWaveformData();
+//       await initializePlayer();
+//     }
+//   }
+
+//   Future<void> _loadWaveformData() async {
+//     const style = PlayerWaveStyle();
+//     final samples = style.getSamplesForWidth(130.w);
+
+//     String? waveformString =
+//         storage.read("${widget.firebaseAudioPath}_waveform");
+
+//     if (waveformString == null) {
+//       log("CREATING NEW WAVEFORM..............");
+//       waveformData = await playerController.extractWaveformData(
+//         path: localAudioPath!,
+//         noOfSamples: samples,
+//       );
+//       storage.write(
+//           "${widget.firebaseAudioPath}_waveform", jsonEncode(waveformData));
+//     } else {
+//       log("FETCHING ALREADY THERE WAVEFORM..............");
+//       waveformData = List<double>.from(jsonDecode(waveformString));
+//     }
+
+//     if (mounted) setState(() {});
+//   }
+
+//   Future<void> initializePlayer() async {
+//     const style = PlayerWaveStyle();
+//     final samples = style.getSamplesForWidth(130.w);
+
+//     await playerController.preparePlayer(
+//       path: localAudioPath!,
+//       noOfSamples: samples,
+//     );
+//     String? waveformString =
+//         storage.read("${widget.firebaseAudioPath}_waveform");
+
+//     if (waveformString == null) {
+//       log("CREATING NEW WAVEFORM..............");
+//       waveformData = await playerController.extractWaveformData(
+//         path: localAudioPath!,
+//         noOfSamples: samples,
+//       );
+//       storage.write(
+//           "${widget.firebaseAudioPath}_waveform", jsonEncode(waveformData));
+//     }
+
+//     if (waveformString != null) {
+//       log("FETCHING ALREADY THERE  WAVEFORM..............");
+//       // Decode the stored waveform data
+//       waveformData = List<double>.from(jsonDecode(waveformString));
+//     }
+
+//     playerController.setFinishMode(finishMode: FinishMode.pause);
+
+//     playerController.onCurrentDurationChanged.listen((event) async {
+//       if (!mounted) return;
+//       currentPosition = formatDuration(event);
+//       if (event == 0) {
+//         currentPosition = audioMaxLength;
+//       }
+//       if (mounted) setState(() {});
+//     });
+
+//     playerController.onCompletion.listen((event) {
+//       if (!mounted) return;
+//       if (mounted) {
+//         setState(() {
+//           playerController.seekTo(0);
+//           isPlaying = false;
+//         });
+//       }
+//     });
+
+//     int duration = await playerController.getDuration();
+//     if (mounted) {
+//       setState(() {
+//         audioMaxLength = formatDuration(duration);
+//         currentPosition = audioMaxLength;
+//       });
+//     }
+//   }
+
+//   void playPause() {
+//     if (!playerController.playerState.isPlaying) {
+//       playerController.startPlayer();
+//       if (mounted) {
+//         setState(() {
+//           isPlaying = true;
+//         });
+//       }
+//     } else {
+//       playerController.pausePlayer();
+//       if (mounted) {
+//         setState(() {
+//           isPlaying = false;
+//         });
+//       }
+//     }
+//   }
+
+//   String convertToPercentage(double progress) {
+//     return "${progress.toInt()}%";
+//   }
+
+//   String formatDuration(int milliseconds) {
+//     int totalSeconds = milliseconds ~/ 1000;
+//     int minutes = totalSeconds ~/ 60;
+//     int seconds = totalSeconds % 60;
+//     return "${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}";
+//   }
+
+//   @override
+//   void dispose() {
+//     playerController.onCurrentDurationChanged.drain(); // Clears the stream
+//     playerController.onCompletion.drain();
+//     playerController.dispose();
+//     super.dispose();
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Row(
+//       children: [
+//         Container(
+//           width: 240.w,
+//           height: 40,
+//           padding: EdgeInsets.symmetric(horizontal: 10.h),
+//           decoration: BoxDecoration(
+//             borderRadius: BorderRadius.circular(20),
+//             color: nineAGrey,
+//           ),
+//           child: Row(
+//             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//             children: [
+//               (localAudioPath == null)
+//                   ? Text(
+//                       convertToPercentage(downloadProgress),
+//                       style: TextStyles.toastText,
+//                     )
+//                   : InkWell(
+//                       onTap: playPause,
+//                       child: Icon(
+//                         isPlaying
+//                             ? Icons.pause_circle_outline
+//                             : Icons.play_circle_outline,
+//                         color: Colors.white,
+//                       ),
+//                     ),
+//               if (waveformData != null)
+//                 AudioFileWaveforms(
+//                   waveformData: waveformData!,
+//                   waveformType: WaveformType.fitWidth,
+//                   playerWaveStyle: const PlayerWaveStyle(
+//                     fixedWaveColor: Colors.white54,
+//                     liveWaveColor: Colors.white,
+//                     spacing: 6,
+//                   ),
+//                   playerController: playerController,
+//                   size: Size(150.w, 50.h),
+//                 )
+//               else
+//                 SizedBox(
+//                   width: 20.w, // Adjust the size as needed
+//                   height: 20.w,
+//                   child: CircularProgressIndicator(
+//                     strokeWidth: 2.5, // Adjust the thickness
+//                     color: Colors.white, // Customize the color
+//                   ),
+//                 ),
+//               Text(
+//                 currentPosition,
+//                 style: TextStyles.toastText,
+//               ),
+//             ],
+//           ),
+//         ),
+//       ],
+//     );
+//   }
+// }

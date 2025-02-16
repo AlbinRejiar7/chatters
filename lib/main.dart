@@ -17,6 +17,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'controller/new_audio_controller/audio_manager.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -103,6 +104,7 @@ class _InitializationScreenState extends State<InitializationScreen>
   }
 
   Future<void> _initializeApp() async {
+    Get.put(AudioManager());
     var ctr = Get.put(ConnectivityController());
     await ctr.initConnectivity();
     await ChatRoomService.updateLastSeen();

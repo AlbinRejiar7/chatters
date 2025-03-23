@@ -1,7 +1,7 @@
 import 'dart:developer';
 
 import 'package:chatter/services/chat_service.dart';
-import 'package:chatter/utils/format_time.dart';
+import 'package:chatter/utils/get_last_seen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -55,10 +55,8 @@ class UserOnlineStatusController extends GetxController {
           // Ensure 'lastSeen' is not null and is a Timestamp
           if (lastSeenRaw is Timestamp) {
             DateTime lastSeenTime = lastSeenRaw.toDate();
-            String formattedTime = formatTime(lastSeenTime);
 
-            lastSeenString.value =
-                "Last seen on $formattedTime"; // Update UI value
+            lastSeenString.value = getLastSeen(lastSeenTime); // Update UI value
           } else if (lastSeenRaw == null) {
             lastSeenString.value = "online"; // Default value
           } else {

@@ -9,29 +9,23 @@ import 'package:visibility_detector/visibility_detector.dart';
 class AudioBubble extends StatelessWidget {
   final String firebaseAudioPath;
   final bool isBlackColor;
+  final List<double> waveData;
+  final bool isCurrentUser;
   const AudioBubble(
-      {super.key, required this.firebaseAudioPath, required this.isBlackColor});
+      {super.key,
+      required this.firebaseAudioPath,
+      required this.isBlackColor,
+      required this.waveData,
+      required this.isCurrentUser});
   @override
   Widget build(BuildContext context) {
     final AudioManager audioManager = Get.find<AudioManager>();
 
-    audioManager.initializeAudio(firebaseAudioPath);
+    audioManager.initializeAudio(firebaseAudioPath, isCurrentUser);
 
     return VisibilityDetector(
       key: Key(firebaseAudioPath),
-      onVisibilityChanged: (visibilityInfo) {
-        if (visibilityInfo.visibleFraction == 0) {
-          // Dispose when not visible
-          audioManager.audioStates[firebaseAudioPath]?.playerController
-              .dispose();
-          audioManager.audioStates.remove(firebaseAudioPath);
-        } else {
-          // Reinitialize when visible
-          if (!audioManager.audioStates.containsKey(firebaseAudioPath)) {
-            audioManager.initializeAudio(firebaseAudioPath);
-          }
-        }
-      },
+      onVisibilityChanged: (visibilityInfo) {},
       child: Obx(() {
         final audioState = audioManager.audioStates[firebaseAudioPath];
 
@@ -56,44 +50,34 @@ class AudioBubble extends StatelessWidget {
                               ? AppColors.darkColor
                               : AppColors.whiteColor),
                     )
-                  : InkWell(
-                      onTap: () => audioManager.playPause(firebaseAudioPath),
-                      child: Icon(
+                  : IconButton(
+                      onPressed: () =>
+                          audioManager.playPause(firebaseAudioPath),
+                      icon: Icon(
                         audioState.isPlaying.value
                             ? Icons.pause_circle_outline
                             : Icons.play_circle_outline,
-                        color:
-                            isBlackColor ? AppColors.darkColor : Colors.white,
                       ),
+                      color: isBlackColor ? AppColors.darkColor : Colors.white,
                     ),
-              if (audioState.waveformData != null)
-                AudioFileWaveforms(
-                  padding: EdgeInsets.symmetric(vertical: 7.h),
-                  waveformData: audioState.waveformData!,
-                  waveformType: WaveformType.fitWidth,
-                  playerWaveStyle: PlayerWaveStyle(
-                    waveCap: StrokeCap.square,
-                    fixedWaveColor:
-                        isBlackColor ? Colors.blue.shade200 : Colors.white54,
-                    liveWaveColor:
-                        isBlackColor ? AppColors.primaryColor : Colors.white,
-                    waveThickness: 2,
-                    spacing: 6,
-                  ),
-                  playerController: audioState.playerController,
-                  size: const Size(150, 50),
-                )
-              else
-                SizedBox(
-                  width: 20.w, // Adjust the size as needed
-                  height: 20.w,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5, // Adjust the thickness
-                    color: isBlackColor
-                        ? AppColors.darkColor
-                        : Colors.white, // Customize the color
-                  ),
+              AudioFileWaveforms(
+                padding: EdgeInsets.symmetric(vertical: 7.h),
+                waveformData: waveData,
+                waveformType: WaveformType.long,
+                playerWaveStyle: PlayerWaveStyle(
+                  seekLineColor:
+                      isBlackColor ? Colors.blue.shade200 : Colors.white54,
+                  waveCap: StrokeCap.square,
+                  fixedWaveColor:
+                      isBlackColor ? Colors.blue.shade200 : Colors.white54,
+                  liveWaveColor:
+                      isBlackColor ? AppColors.primaryColor : Colors.white,
+                  waveThickness: 2,
+                  spacing: 6,
                 ),
+                playerController: audioState.playerController,
+                size: const Size(150, 50),
+              ),
               Text(
                 audioState.currentPosition.value,
                 style: TextStyle(

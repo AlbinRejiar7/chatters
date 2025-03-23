@@ -1,17 +1,20 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:chatter/controller/connectivity.dart';
+import 'package:chatter/controller/record_audio.dart';
 import 'package:chatter/model/chat.dart';
 import 'package:chatter/services/chat_service.dart';
 import 'package:chatter/services/firebase_services.dart';
-import 'package:chatter/services/flutter_sound.dart';
 import 'package:chatter/services/local_chat.dart';
 import 'package:chatter/services/local_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
+
+import '../services/firebase_storage.dart';
 
 class ChatPageController extends GetxController {
   Timer? _debounce;
@@ -20,7 +23,7 @@ class ChatPageController extends GetxController {
   final String chatRoomId;
   final String receiverId;
   final int unReadCount;
-  var audioService = AudioService();
+  // var audioService = IncomingOutgoingService();
   final List<ChatModel> lastMesages;
   final GlobalKey<AnimatedListState> listKey = GlobalKey<AnimatedListState>();
   var messageController = TextEditingController();
@@ -245,7 +248,7 @@ class ChatPageController extends GetxController {
           // Collect new messages
           newMessages.add(newMessage);
 
-          await audioService.playIncomingSoundSound();
+          // await audioService.playIncomingSound();
         }
       }
 
@@ -267,11 +270,11 @@ class ChatPageController extends GetxController {
         .where((msg) => msg.isDeleted == true)
         .map((msg) => msg.id ?? "")
         .toSet();
-
     var query = FirebaseFireStoreServices.firestore
         .collection('chatRooms')
         .doc(chatRoomId)
         .collection('messages')
+        .where("isRead", isEqualTo: null) // Instead of isNotEqualTo
         .orderBy('createdAt', descending: true);
 
     query.snapshots().listen((QuerySnapshot snapshot) async {
@@ -299,7 +302,7 @@ class ChatPageController extends GetxController {
           // Collect new messages
           newMessages.add(newMessage);
 
-          await audioService.playIncomingSoundSound();
+          // await audioService.playIncomingSound();
         }
       }
 
@@ -427,15 +430,19 @@ class ChatPageController extends GetxController {
     sampleChats.refresh();
   }
 
-  void sendMessage({required MessageType messageType, String? mediaUrl}) async {
-    log("sendMessage tapped ${mediaUrl}");
-    if (mediaUrl != null) {
-      messageController.text = mediaUrl ?? "";
+  void sendMessage(
+      {required MessageType messageType,
+      String? mediaUrl,
+      String? localPath,
+      List<double>? waveformData}) async {
+    if (messageController.text.trim().isEmpty && (localPath?.isEmpty ?? true)) {
+      return;
     }
-    if (messageController.text.trim().isEmpty) return;
     if (_debounce?.isActive ?? false) _debounce?.cancel();
 
     var message = ChatModel(
+        fileName: localPath,
+        waveformData: waveformData,
         id: const Uuid().v4(),
         senderId: LocalService.userId,
         senderName: LocalService.userName,
@@ -445,7 +452,7 @@ class ChatPageController extends GetxController {
         isRead: null,
         createdAt: DateTime.now(),
         isSend: false,
-        mediaUrl: mediaUrl,
+        // mediaUrl: mediaUrl,
         messageType: messageType,
         receiverId: receiverId,
         lastUpdated: DateTime.now());
@@ -453,7 +460,15 @@ class ChatPageController extends GetxController {
     sampleChats.insert(0, message);
     messageController.clear();
     isCurrentlyTyping.value = false;
-    _debounce = Timer(const Duration(milliseconds: 100), () async {
+    if (messageType == MessageType.audio) {
+      var audioUrl = await FirebaseStorageSerivce.uploadUserAudio(
+          phoneNumber: LocalService.userId ?? "",
+          audioFile: File(Get.find<RecordAudioController>().filePath.value));
+
+      message.message = audioUrl;
+    }
+
+    _debounce = Timer(const Duration(milliseconds: 10), () async {
       var isConnected = (Get.find<ConnectivityController>().isConnected.value);
       if (!isConnected) {
         // No internet, store the message locally
@@ -469,7 +484,7 @@ class ChatPageController extends GetxController {
   Future<void> _sendMessageToServer(ChatModel message) async {
     try {
       message.isSend = true;
-      audioService.playOutGoingSoundSound();
+      // audioService.playOutgoingSound();
       await ChatRoomService.updateIsTyping(
           isTyping: false, chatroomId: chatRoomId);
       log("${sampleChats.isEmpty}-----------------------");
@@ -497,43 +512,6 @@ class ChatPageController extends GetxController {
     } catch (e) {
       log("Error sending message: $e");
       await ChatStorageService.storeUnsentMessage(chatRoomId, message);
-    }
-  }
-
-  Future<void> getLastMsgListAndAddtoOriginalList(String chatRoomId) async {
-    try {
-      DocumentSnapshot chatRoomDoc = await FirebaseFirestore.instance
-          .collection('chatRooms')
-          .doc(chatRoomId)
-          .get();
-
-      if (chatRoomDoc.exists) {
-        List<dynamic> messagesJson = chatRoomDoc.get('lastMessages') ?? [];
-        var lastMessages =
-            messagesJson.map((json) => ChatModel.fromJson(json)).toList();
-
-        for (ChatModel message in lastMessages) {
-          bool alreadyExists = sampleChats
-              .any((existingMessage) => existingMessage.id == message.id);
-
-          if (!alreadyExists) {
-            if (message.senderId != LocalService.userId) {
-              sampleChats.insert(0, message);
-              ChatStorageService.addMessage(chatRoomId, message);
-              log("Added new Last Message with ID: ${message.id}");
-            } else {
-              message.isRead = true;
-              int index = sampleChats.indexWhere((m) => m.id == message.id);
-              if (index != -1) {
-                sampleChats[index] = message;
-              }
-            }
-            sampleChats.refresh();
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Error fetching lastMessages: $e");
     }
   }
 
@@ -605,7 +583,7 @@ class ChatPageController extends GetxController {
     messageController.dispose();
     _debounce?.cancel();
 
-    audioService.dispose();
+    // audioService.dispose();
   }
 
 // Timestamp to track the latest message's createdAt field

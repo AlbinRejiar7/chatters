@@ -35,7 +35,7 @@ class _MicAnimationWidgetState extends State<MicAnimationWidget>
     parent: _controller,
     curve: Curves.elasticInOut,
   );
-  bool longpressHappend = false;
+
   bool _isLongPressTriggered = false;
   late Ticker? _ticker;
   bool _isWobbling = false;
@@ -57,11 +57,11 @@ class _MicAnimationWidgetState extends State<MicAnimationWidget>
     if (!widget.isMic) return;
     _isLongPressTriggered = false;
     widget.onLongPressStart?.call();
-    Future.delayed(const Duration(milliseconds: 200), () {
+
+    Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted && !_isLongPressTriggered) {
         _controller.forward();
         _isLongPressTriggered = true;
-
         _startWobble();
         setState(() {});
       }
@@ -72,13 +72,19 @@ class _MicAnimationWidgetState extends State<MicAnimationWidget>
     if (!_isLongPressTriggered) {
       _isLongPressTriggered = true;
     }
+
     _controller.reverse();
     _stopWobble();
+
     setState(() {
       _micPositionX = 0;
-      _isCancelled = false;
     });
-    widget.onLongPressRelease?.call();
+
+    if (_isCancelled) {
+      widget.onSlideToCancel?.call(); // Notify parent widget
+    } else {
+      widget.onLongPressRelease?.call(); // Only call if NOT cancelled
+    }
   }
 
   void _startWobble() {
@@ -100,32 +106,27 @@ class _MicAnimationWidgetState extends State<MicAnimationWidget>
     double dragDistance = details.globalPosition.dx - _startPosition;
 
     if (dragDistance < 0) {
+      // Only react if dragging left
       setState(() {
         _micPositionX = dragDistance.abs();
-        if (_micPositionX > _dragThreshold / 2) {
-          _isCancelled = true;
+
+        // Ensure _isCancelled is set once the threshold is exceeded
+        if (_micPositionX > _dragThreshold) {
+          if (!_isCancelled) {
+            _isCancelled = true;
+            widget.onSlideToCancel?.call(); // Notify parent widget
+            _cancelLongPress(); // Stop recording and cancel
+          }
         }
       });
-
-      if (_micPositionX > _dragThreshold &&
-          details.globalPosition.dx < MediaQuery.of(context).size.width / 2) {
-        if (!_isCancelled) {
-          setState(() {
-            _isCancelled = true;
-          });
-          print("onslide cacel called----------");
-          widget.onSlideToCancel?.call(); // Call slide cancel function
-          Future.delayed(const Duration(milliseconds: 100), _resetMicPosition);
-        }
-      }
     }
   }
 
   void _onDragEnd(DragEndDetails details) {
-    widget.onSlideToCancel?.call();
     if (_isCancelled) {
-      _resetMicPosition(); // Reset position without calling onLongPressRelease
+      _resetMicPosition(); // Reset position without sending the message
     } else {
+      widget.onLongPressRelease?.call(); // Only release if NOT cancelled
       setState(() {
         _micPositionX = 0;
       });
@@ -151,12 +152,12 @@ class _MicAnimationWidgetState extends State<MicAnimationWidget>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      onLongPress: _startLongPress, // Start recording only on long press
+      onLongPressUp:
+          _cancelLongPress, // Stop recording when the press is released
       onHorizontalDragStart: _isLongPressTriggered ? _onDragStart : null,
       onHorizontalDragUpdate: _isLongPressTriggered ? _onDragUpdate : null,
       onHorizontalDragEnd: _isLongPressTriggered ? _onDragEnd : null,
-      onTapDown: (_) => _startLongPress(),
-      onTapUp: (_) => _cancelLongPress(),
-      onTapCancel: () => _cancelLongPress(),
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.centerLeft,
@@ -197,143 +198,3 @@ class _MicAnimationWidgetState extends State<MicAnimationWidget>
     );
   }
 }
-
-// //can be used to reply widget
-// class MicAnimationWidget extends StatefulWidget {
-//   const MicAnimationWidget({super.key});
-
-//   @override
-//   State<MicAnimationWidget> createState() =>
-//       _MicAnimationWidgetState();
-// }
-
-// class _MicAnimationWidgetState
-//     extends State<MicAnimationWidget> with TickerProviderStateMixin {
-//   late final AnimationController _controller = AnimationController(
-//     duration: const Duration(milliseconds: 400),
-//     vsync: this,
-//   );
-
-//   late final Animation<double> _animation = CurvedAnimation(
-//     parent: _controller,
-//     curve: Curves.elasticInOut,
-//   );
-
-//   bool _isLongPressTriggered = false;
-//   late Ticker _ticker;
-//   bool _isWobbling = false;
-//   double _micPositionX = 0.0; // Track mic position
-//   bool _isCancelled = false;
-
-//   void _startLongPress() {
-//     _isLongPressTriggered = false;
-//     Future.delayed(const Duration(milliseconds: 300), () {
-//       if (mounted && !_isLongPressTriggered) {
-//         _controller.forward();
-//         _isLongPressTriggered = true;
-//         _startWobble();
-//       }
-//     });
-//   }
-
-//   void _cancelLongPress() {
-//     if (!_isLongPressTriggered) {
-//       _isLongPressTriggered = true;
-//     }
-//     _controller.reverse();
-//     _stopWobble();
-//   }
-
-//   void _startWobble() {
-//     _isWobbling = true;
-//     _ticker = createTicker((elapsed) {
-//       if (!_isWobbling) return;
-//       _controller.isCompleted ? _controller.reverse() : _controller.forward();
-//     });
-//     _ticker.start();
-//   }
-
-//   void _stopWobble() {
-//     _isWobbling = false;
-//     _ticker.stop();
-//     _controller.reverse();
-//   }
-
-//   void _onDragUpdate(DragUpdateDetails details) {
-//     setState(() {
-//       _micPositionX += details.primaryDelta ?? 0.0; // Move mic left or right
-//     });
-
-//     if (_micPositionX < -100) {
-//       // If dragged far enough left, cancel the action
-//       setState(() {
-//         _isCancelled = true;
-//       });
-//     }
-//   }
-
-//   void _onDragEnd(DragEndDetails details) {
-//     if (_isCancelled) {
-//       _cancelLongPress(); // Cancel if dragged past threshold
-//     } else {
-//       setState(() {
-//         _micPositionX = 0; // Reset position
-//       });
-//     }
-//   }
-
-//   @override
-//   void dispose() {
-//     _controller.dispose();
-//     _ticker.dispose();
-//     super.dispose();
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return GestureDetector(
-//       onHorizontalDragUpdate: _onDragUpdate,
-//       onHorizontalDragEnd: _onDragEnd,
-//       onTapDown: (_) => _startLongPress(),
-//       onTapUp: (_) => _cancelLongPress(),
-//       onTapCancel: () => _cancelLongPress(),
-//       child: Stack(
-//         alignment: Alignment.centerLeft,
-//         children: [
-//           Padding(
-//             padding: EdgeInsets.only(left: 20.0), // Text fixed in position
-//             child: Text(
-//               "<< Slide to cancel",
-//               style: TextStyle(fontSize: 16, color: Colors.grey),
-//             ),
-//           ),
-//           AnimatedPositioned(
-//             duration: Duration(milliseconds: 100),
-//             left: _micPositionX, // Mic follows slide
-//             child: AnimatedBuilder(
-//               animation: _animation,
-//               builder: (context, child) {
-//                 double size = 44.0 + (_animation.value * 16.0);
-//                 double rotation =
-//                     sin(_animation.value * pi * 2) * 0.1; // Wobble effect
-//                 return Transform.rotate(
-//                   angle: rotation,
-//                   child: Opacity(
-//                     opacity: _isCancelled ? 0.5 : 1, // Fade out on cancel
-//                     child: SizedBox(
-//                       width: size,
-//                       height: size,
-//                       child: SendMicButton(
-//                         isSend: false, // Update UI on cancel
-//                       ),
-//                     ),
-//                   ),
-//                 );
-//               },
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }

@@ -70,6 +70,8 @@ class Otheruserbubble extends StatelessWidget {
             ),
           if (entity == MessageType.audio.name)
             AudioBubble(
+              isCurrentUser: false,
+              waveData: chat.waveformData ?? [],
               isBlackColor: true,
               firebaseAudioPath: chat.message!,
             ),

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:chatter/constants/colors.dart';
 import 'package:chatter/controller/chat.dart';
@@ -7,7 +6,6 @@ import 'package:chatter/controller/record_audio.dart';
 import 'package:chatter/controller/user_online.dart';
 import 'package:chatter/model/chat.dart';
 import 'package:chatter/services/chat_service.dart';
-import 'package:chatter/services/firebase_storage.dart';
 import 'package:chatter/services/local_service.dart';
 import 'package:chatter/utils/format_time.dart';
 import 'package:chatter/utils/is_only_emoji.dart';
@@ -83,6 +81,7 @@ class ChatPage extends StatelessWidget {
                         ),
                       )
                     : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
                         reverse: true,
                         itemCount: ctr.sampleChats.length +
                             (userStatusCtr.isTyping.value
@@ -177,16 +176,14 @@ class ChatPage extends StatelessWidget {
                     onLongPressRelease: () async {
                       await audioRecorderCtr.toggleRecording();
                       if (audioRecorderCtr.filePath.value.isNotEmpty) {
-                        var mediaUrl =
-                            await FirebaseStorageSerivce.uploadUserAudio(
-                                phoneNumber: LocalService.userId ?? "",
-                                audioFile:
-                                    File(audioRecorderCtr.filePath.value));
                         ctr.sendMessage(
-                            messageType: MessageType.audio, mediaUrl: mediaUrl);
+                            messageType: MessageType.audio,
+                            localPath: audioRecorderCtr.filePath.value,
+                            waveformData: audioRecorderCtr.waveForms);
                       }
                     },
                     onSlideToCancel: () {
+                      audioRecorderCtr.filePath.value = "";
                       print("Mic slid to the far left - Recording cancelled");
                     },
                   );
@@ -217,56 +214,65 @@ class SendTextField extends StatelessWidget {
         decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(50),
             color: AppColors.primaryLight),
-        child: Column(
+        child: Row(
           children: [
-            TextField(
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.darkColor, fontSize: 14.sp),
-              cursorHeight: 16.h,
-              minLines: 1,
-              maxLines: 4,
-              cursorColor: AppColors.primaryColor,
-              controller: ctr.messageController,
-              onChanged: (value) {
-                bool isTypingNow = value.isNotEmpty;
-
-                // Update only if the typing state has changed
-                if (isTypingNow != ctr.isCurrentlyTyping.value) {
-                  ctr.isCurrentlyTyping.value = isTypingNow;
-                  ChatRoomService.updateIsTyping(
-                      isTyping: ctr.isCurrentlyTyping.value,
-                      chatroomId: ctr.chatRoomId);
-                }
-
-                // Reset the debounce timer
-                ctr.typingTimer?.cancel();
-
-                if (isTypingNow) {
-                  // If user is typing, don't set a stop timer yet
-                  return;
-                }
-
-                // If user stops typing, wait 1 second before marking as not typing
-                ctr.typingTimer = Timer(const Duration(seconds: 1), () {
-                  if (!ctr.isCurrentlyTyping.value) {
-                    ChatRoomService.updateIsTyping(
-                        isTyping: false, chatroomId: ctr.chatRoomId);
-                  }
-                });
-              },
-              decoration: InputDecoration(
-                hintStyle: Theme.of(context)
+            Expanded(
+              child: TextField(
+                style: Theme.of(context)
                     .textTheme
-                    .bodyLarge
-                    ?.copyWith(fontWeight: FontWeight.normal),
-                isDense: true,
-                contentPadding: const EdgeInsets.all(0),
-                hintText: hintText,
-                border: InputBorder.none,
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.darkColor, fontSize: 14.sp),
+                cursorHeight: 16.h,
+                minLines: 1,
+                maxLines: 4,
+                cursorColor: AppColors.primaryColor,
+                controller: ctr.messageController,
+                onChanged: (value) {
+                  bool isTypingNow = value.isNotEmpty;
+
+                  // Update only if the typing state has changed
+                  if (isTypingNow != ctr.isCurrentlyTyping.value) {
+                    ctr.isCurrentlyTyping.value = isTypingNow;
+                    ChatRoomService.updateIsTyping(
+                        isTyping: ctr.isCurrentlyTyping.value,
+                        chatroomId: ctr.chatRoomId);
+                  }
+
+                  // Reset the debounce timer
+                  ctr.typingTimer?.cancel();
+
+                  if (isTypingNow) {
+                    // If user is typing, don't set a stop timer yet
+                    return;
+                  }
+
+                  // If user stops typing, wait 1 second before marking as not typing
+                  ctr.typingTimer = Timer(const Duration(seconds: 1), () {
+                    if (!ctr.isCurrentlyTyping.value) {
+                      ChatRoomService.updateIsTyping(
+                          isTyping: false, chatroomId: ctr.chatRoomId);
+                    }
+                  });
+                },
+                decoration: InputDecoration(
+                  hintStyle: Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(fontWeight: FontWeight.normal),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.all(0),
+                  hintText: hintText,
+                  border: InputBorder.none,
+                ),
               ),
-            )
+            ),
+            InkWell(
+              onTap: () {},
+              child: const Icon(
+                Icons.photo_library_rounded,
+                color: AppColors.primaryColor,
+              ),
+            ),
           ],
         ),
       ),
@@ -350,8 +356,10 @@ class MessageBubble extends StatelessWidget {
             ),
           if (entity == MessageType.audio.name)
             AudioBubble(
+              isCurrentUser: true,
+              waveData: chat.waveformData ?? [],
               isBlackColor: false,
-              firebaseAudioPath: chat.message!,
+              firebaseAudioPath: chat.fileName ?? "",
             ),
           kWidth(context.width * 0.02),
           Wrap(

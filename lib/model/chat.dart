@@ -66,7 +66,10 @@ class ChatModel {
   DateTime? createdAt;
 
   @HiveField(20)
-  DateTime? lastUpdated; // New field added
+  DateTime? lastUpdated;
+
+  @HiveField(21)
+  List<double>? waveformData; // New field for waveform data
 
   ChatModel({
     this.id,
@@ -89,7 +92,8 @@ class ChatModel {
     this.mentions,
     this.replyToMessageId,
     this.createdAt,
-    this.lastUpdated, // Initialize new field
+    this.lastUpdated,
+    this.waveformData, // Initialize new field
   });
 
   // Factory to parse JSON
@@ -102,7 +106,7 @@ class ChatModel {
       message: json['message']?.toString(),
       timestamp: _parseTimestamp(json['timestamp']),
       createdAt: _parseTimestamp(json['createdAt']),
-      lastUpdated: _parseTimestamp(json['lastUpdated']), // Parsing lastUpdated
+      lastUpdated: _parseTimestamp(json['lastUpdated']),
       isSentByMe: json['isSentByMe'] as bool?,
       isRead: json['isRead'] as bool?,
       messageType: json['messageType'] != null
@@ -124,6 +128,9 @@ class ChatModel {
           : [],
       replyToMessageId: json['replyToMessageId']?.toString(),
       isSend: json['isSend'] as bool? ?? false,
+      waveformData: json['waveformData'] != null
+          ? List<double>.from(json['waveformData'] as List)
+          : null, // Parse waveform data
     );
   }
 
@@ -160,9 +167,8 @@ class ChatModel {
       'message': message,
       'timestamp': timestamp?.toIso8601String(),
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
-      'lastUpdated': lastUpdated != null
-          ? Timestamp.fromDate(lastUpdated!)
-          : null, // Include lastUpdated
+      'lastUpdated':
+          lastUpdated != null ? Timestamp.fromDate(lastUpdated!) : null,
       'isSentByMe': isSentByMe,
       'isRead': isRead,
       'messageType': messageType?.toString().split('.').last,
@@ -176,6 +182,7 @@ class ChatModel {
       'mentions': mentions,
       'replyToMessageId': replyToMessageId,
       'isSend': isSend,
+      'waveformData': waveformData, // Include waveform data in JSON
     };
   }
 
@@ -202,7 +209,8 @@ class ChatModel {
     List<String>? mentions,
     String? replyToMessageId,
     DateTime? createdAt,
-    DateTime? lastUpdated, // Add lastUpdated to copyWith
+    DateTime? lastUpdated,
+    List<double>? waveformData, // Add waveform data
   }) {
     return ChatModel(
       id: id ?? this.id,
@@ -212,7 +220,7 @@ class ChatModel {
       message: message ?? this.message,
       timestamp: timestamp ?? this.timestamp,
       createdAt: createdAt ?? this.createdAt,
-      lastUpdated: lastUpdated ?? this.lastUpdated, // Assign lastUpdated
+      lastUpdated: lastUpdated ?? this.lastUpdated,
       isSentByMe: isSentByMe ?? this.isSentByMe,
       isRead: isRead ?? this.isRead,
       messageType: messageType ?? this.messageType,
@@ -226,6 +234,7 @@ class ChatModel {
       reactions: reactions ?? this.reactions,
       mentions: mentions ?? this.mentions,
       replyToMessageId: replyToMessageId ?? this.replyToMessageId,
+      waveformData: waveformData ?? this.waveformData, // Assign waveform data
     );
   }
 }

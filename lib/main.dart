@@ -40,7 +40,7 @@ void main() async {
   // var ctr = Get.put(ContactsController());
   // await ctr.fetchContacts();
   // await ctr.fetchMatchingContacts();
-
+  Get.put(AudioManager(), permanent: true); // Initialize AudioManager
   runApp(const MyApp());
 }
 

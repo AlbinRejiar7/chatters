@@ -38,13 +38,14 @@ class ChatModelAdapter extends TypeAdapter<ChatModel> {
       replyToMessageId: fields[18] as String?,
       createdAt: fields[19] as DateTime?,
       lastUpdated: fields[20] as DateTime?,
+      waveformData: (fields[21] as List?)?.cast<double>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, ChatModel obj) {
     writer
-      ..writeByte(21)
+      ..writeByte(22)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -86,7 +87,9 @@ class ChatModelAdapter extends TypeAdapter<ChatModel> {
       ..writeByte(19)
       ..write(obj.createdAt)
       ..writeByte(20)
-      ..write(obj.lastUpdated);
+      ..write(obj.lastUpdated)
+      ..writeByte(21)
+      ..write(obj.waveformData);
   }
 
   @override
